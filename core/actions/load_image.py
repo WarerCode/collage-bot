@@ -1,5 +1,8 @@
 import telebot
 from telebot import types
 
-def call(message) -> str:
+def help(message) -> str:
     return "load image called"
+
+def process(message) -> str:
+    return "ok, load image process called"

@@ -4,7 +4,7 @@ import telebot
 from telebot import types
 from core.actions import get_collage, load_image # all buttons processors
 
-load_dotenv('config.env')
+load_dotenv(r'E:\портфолио студента\материалы\2024 - 2025\events\summer\collage bot\config.env')
 BOT_API_KEY = os.getenv('BOT_API_KEY')
 
 bot = telebot.TeleBot(BOT_API_KEY)  # generates bot entity
@@ -21,6 +21,9 @@ load_image_action = types.KeyboardButton(LOAD_IMAGE)
 markup.add(get_collage_action, load_image_action)
 # TODO: optionally we can add info_action, which send links to us repo and all that ...
 
+
+# global dialog context for photo handler
+IS_WAITING_IMAGE = False
 
 @bot.message_handler(commands=['start'])
 def welcome(message) -> None:
@@ -46,14 +49,20 @@ def start_send_messages(message) -> None:
     :param message: telebot.types.Message
     :return: None
     '''
+    global IS_WAITING_IMAGE
+
     if message.chat.type == 'private':
         prompt = message.text
+        photo = ''
 
         if prompt == MAKE_COLLAGE:
-            answer = get_collage.call(message)
+            answer = get_collage.help(message)
+            answer += get_collage.process(message)
+            photo = get_collage.get_instance()
 
         elif prompt == LOAD_IMAGE:
-            answer = load_image.call(message)
+            answer = load_image.help(message)
+            IS_WAITING_IMAGE = True # set dialog context
 
         else:
             # TODO: TopShizoid2010, change it maybe:
@@ -62,9 +71,38 @@ def start_send_messages(message) -> None:
         bot.send_message(message.chat.id,
                          answer,
                          parse_mode='markdown') # every answer sending as .md text
+
+        bot.send_photo(message.chat.id,
+                      photo)   # sending photo as byte array
     else:
         # TODO: send diagnostics log
         pass
+
+
+@bot.message_handler(content_types=['photo'])   # answer to all photos
+def photo_send_message(message) -> None:
+    '''
+    This handler tracking all sended photos
+    depending on context
+    :param message: telebot.types.Message
+    :return: None
+    '''
+    global IS_WAITING_IMAGE
+
+    if IS_WAITING_IMAGE:
+        answer = load_image.process(message)
+        IS_WAITING_IMAGE = False    # reset dialog context
+
+    else:
+        # TODO: @TopShizoid, make help message, please, 'html' or 'markdown' too:
+        answer = '''
+            Here located @TopShizoid2010's help message
+            You can set parse mode: 'html' or 'markdown' maybe
+            '''
+
+    bot.send_message(message.chat.id,
+                     answer,
+                     reply_markup=markup)
 
 
 # vvv RUNNING vvv
