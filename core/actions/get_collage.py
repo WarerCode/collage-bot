@@ -1,6 +1,4 @@
-import io
-import telebot
-from telebot import types
+from typing import BinaryIO
 
 COLLAGE = ''    # collage as byte array
 
@@ -39,6 +37,8 @@ def parse_tags(prompt) -> list[str]:
 
 def is_valid_prompt(tags: list[str], errors: list[str]) -> bool:
     # TODO: maybe given too much tags > 5 maybe
+    return True
+
     limit = 5
     ok = True
 
@@ -62,7 +62,7 @@ def is_possible_collage(tags: list[str], errors: list[str]) -> bool:
     pass
 
 
-def build_collage(tags: list[str]) -> io.BufferedReader:
+def build_collage(tags: list[str]) -> BinaryIO:
     '''
     It's get_collage's core, here building an image
     as binary buffer. After return this data takes
@@ -74,8 +74,8 @@ def build_collage(tags: list[str]) -> io.BufferedReader:
     # creates new file
     # building
     # sending
-    pass
+    return open(r"C:\Users\home\Pictures\derpy-hooves-pony-wallpaper-preview.jpg", 'rb')
 
 
-def get_instance() -> io.BufferedReader:
+def get_instance() -> BinaryIO:
     return COLLAGE

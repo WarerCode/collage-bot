@@ -53,12 +53,14 @@ def start_send_messages(message) -> None:
 
     if message.chat.type == 'private':
         prompt = message.text
-        photo = ''
+        photo = ''  # will be byte array raw data vvv
 
         if prompt == MAKE_COLLAGE:
             answer = get_collage.help(message)
             answer += get_collage.process(message)
             photo = get_collage.get_instance()
+            bot.send_photo(message.chat.id,
+                           photo)  # sending photo as byte array
 
         elif prompt == LOAD_IMAGE:
             answer = load_image.help(message)
@@ -69,11 +71,8 @@ def start_send_messages(message) -> None:
             answer = "Пожалуйста, используйте кнопки, я не понимаю команду"
 
         bot.send_message(message.chat.id,
-                         answer,
-                         parse_mode='markdown') # every answer sending as .md text
+                         answer) # every answer sending as .md text
 
-        bot.send_photo(message.chat.id,
-                      photo)   # sending photo as byte array
     else:
         # TODO: send diagnostics log
         pass
