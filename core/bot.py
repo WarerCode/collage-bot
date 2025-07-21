@@ -3,6 +3,7 @@ from telebot import types
 import os
 from dotenv import load_dotenv
 from serializers import list_to_str
+import database
 
 load_dotenv("./.env")
 
@@ -37,32 +38,36 @@ def handle_uploaded_image(message):
 
         photo = message.photo[-1]
         file_id = photo.file_id
-        file_info = bot.get_file(file_id)
-        downloaded_file = bot.download_file(file_info.file_path)
-
-        os.makedirs("images", exist_ok=True)
-        file_path = f"images/{file_id}.jpg"
-        with open(file_path, 'wb') as new_file:
-            new_file.write(downloaded_file)
 
         bot.send_message(message.chat.id, "Придумайте теги для изображения! (testing)")
 
-        bot.register_next_step_handler(message, handle_send_image_tags)
+        bot.register_next_step_handler(message, handle_send_image_tags, kwargs={"file_id": file_id})
     except Exception as e:
         bot.send_message(message.chat.id, "Ошибка: {e} (testing)")
 
-def handle_send_image_tags(message):
+def handle_send_image_tags(message, kwargs):
     if message.content_type != "text":
         raise ValueError("Это не теги")
     
-    tags = set(tag for tag in message.text.lower().replace("#", "").split() if tag)
-    tags_str = list_to_str(tags)
-    print(tags_str)
+    file_id = kwargs.get("file_id")
+    
+    file_info = bot.get_file(file_id)
+    downloaded_file = bot.download_file(file_info.file_path)
+
+    os.makedirs("images", exist_ok=True)
+    file_path = f"images/{file_id}.jpg"
+    with open(file_path, 'wb') as new_file:
+        new_file.write(downloaded_file)
+    
+    tags = list(set(tag for tag in message.text.lower().replace("#", "").split() if tag))
+
+    database.save_to_database(message.from_user.id, file_id, tags)
 
     bot.send_message(message.chat.id, "Изображение с тегами успешно загружено")
 
 
 
 if __name__ == '__main__':
+    database.init_db()
     print("Бот запущен")
     bot.infinity_polling()
