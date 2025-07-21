@@ -2,6 +2,7 @@ import telebot
 from telebot import types
 import os
 from dotenv import load_dotenv
+from serializers import list_to_str
 
 load_dotenv("./.env")
 
@@ -32,7 +33,7 @@ def request_image(message):
 def handle_uploaded_image(message):
     try:
         if message.content_type != 'photo':
-            raise ValueError("Это не изображение!")
+            raise ValueError("Это не изображение")
 
         photo = message.photo[-1]
         file_id = photo.file_id
@@ -44,10 +45,22 @@ def handle_uploaded_image(message):
         with open(file_path, 'wb') as new_file:
             new_file.write(downloaded_file)
 
+        bot.send_message(message.chat.id, "Придумайте теги для изображения! (testing)")
 
-        bot.send_message(message.chat.id, "Изображение успешно загружено! (testing)")
+        bot.register_next_step_handler(message, handle_send_image_tags)
     except Exception as e:
         bot.send_message(message.chat.id, "Ошибка: {e} (testing)")
+
+def handle_send_image_tags(message):
+    if message.content_type != "text":
+        raise ValueError("Это не теги")
+    
+    tags = set(tag for tag in message.text.lower().replace("#", "").split() if tag)
+    tags_str = list_to_str(tags)
+    print(tags_str)
+
+    bot.send_message(message.chat.id, "Изображение с тегами успешно загружено")
+
 
 
 if __name__ == '__main__':
