@@ -65,7 +65,6 @@ def start_send_messages(message) -> None:
     else:
         # TODO: send diagnostics log
         pass
-    pass
 
 
 # vvv RUNNING vvv
