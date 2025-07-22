@@ -22,8 +22,8 @@ load_image_action = types.KeyboardButton(LOAD_IMAGE)
 markup.add(get_collage_action, load_image_action)
 # TODO: optionally we can add info_action, which send links to us repo and all that ...
 
-
 # global dialog context for handlers
+DIALOG_MODE         = 'private'
 IS_WAITING_IMAGE    = False
 IS_WAITING_TAGS     = False
 PURPOSES = ["load_image", "get_collage"]    # enumerator
@@ -53,19 +53,22 @@ def start_send_messages(message) -> None:
     '''
     global IS_WAITING_IMAGE, IS_WAITING_TAGS, PURPOSES, CURRENT_REQUEST
 
-    if message.chat.type == 'private':
+    if message.chat.type == DIALOG_MODE:
         prompt = message.text
 
         if IS_WAITING_TAGS: #bot waiting tags for loading photo
 
-            if CURRENT_REQUEST == PURPOSES[0]:  # TODO: LOAD_IMAGE action
-                answer = SUCCESS_MSG
-                IS_WAITING_TAGS = False
+            if CURRENT_REQUEST == PURPOSES[0]:
+                answer  = load_image.process(message)
+
+                if load_image.is_ok():
+                    IS_WAITING_TAGS = False
+                else:
+                    answer = user_mistake_msg()  # common.py::
 
             elif CURRENT_REQUEST == PURPOSES[1]:    # get collage action branch
-                answer = get_collage.help(message)
-                answer += get_collage.process(message)
-                photo = get_collage.get_instance()
+                answer  = get_collage.process(message)
+                photo   = get_collage.get_instance()
                 bot.send_photo(message.chat.id,
                                photo)  # sending photo as byte array
 
@@ -81,7 +84,7 @@ def start_send_messages(message) -> None:
 
         else:
             if prompt == MAKE_COLLAGE:
-                answer = LOAD_IMAGE_TAGS_PLS_MSG # TODO: GET_COLLAGE_TAGS_PLS_MSG
+                answer = LOAD_IMAGE_TAGS_PLS_MSG # TODO: GET_COLLAGE_TAGS_PLS_MSG @topShizoid2010
                 IS_WAITING_TAGS = True # set dialog context
                 CURRENT_REQUEST = PURPOSES[1]
 
@@ -98,7 +101,7 @@ def start_send_messages(message) -> None:
                          parse_mode='html') # every answer sending as .md text
 
     else:
-        print(f"something went wrong, non private chat type from {message.chat.id}")
+        print(f"something went wrong, non expected chat type from {message.chat.id}")
 
 
 @bot.message_handler(content_types=['photo'])   # answer to all photos
@@ -112,14 +115,19 @@ def photo_send_message(message) -> None:
     global IS_WAITING_IMAGE, IS_WAITING_TAGS
 
     if IS_WAITING_IMAGE:
-        load_image.process(message)
-        IS_WAITING_IMAGE    = False    # reset dialog context
-        IS_WAITING_TAGS     = True
+        ok = load_image.save_to_buffer(message.photo)
 
-        answer = LOAD_IMAGE_TAGS_PLS_MSG
+        if ok:
+            IS_WAITING_IMAGE    = False    # reset dialog context
+            IS_WAITING_TAGS     = True
+            answer = LOAD_IMAGE_TAGS_PLS_MSG
+
+        else:
+            print(f"something went wrong, failed to save image buffer from {message.chat.id}")
+            answer = r"""Упси Вупси, я ошибся ((\n""" # TODO: @topShizoid2010
 
     else:
-        # TODO: @TopShizoid, make help message, please, 'html' or 'markdown' too:
+        # TODO: @TopShizoid2010, make help message, please, 'html' or 'markdown' too:
         answer = '''
             Here located @TopShizoid2010's help message
             You can set parse mode: 'html' or 'markdown' maybe
