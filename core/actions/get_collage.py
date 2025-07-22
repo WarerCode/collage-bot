@@ -1,6 +1,7 @@
 from typing import BinaryIO
 
 COLLAGE = ''    # collage as byte array
+COLLAGE_GIVEN_SUCCESSFULLY = True
 
 def help(message) -> str:
     return "get collage called"
@@ -79,3 +80,7 @@ def build_collage(tags: list[str]) -> BinaryIO:
 
 def get_instance() -> BinaryIO:
     return COLLAGE
+
+
+def is_ok() -> bool:
+    return COLLAGE_GIVEN_SUCCESSFULLY
