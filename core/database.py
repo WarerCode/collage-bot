@@ -1,8 +1,13 @@
 import sqlite3
+from dotenv import load_dotenv
+import os
+
+load_dotenv('config.env')
+DB_NAME = os.getenv('DB_NAME')
 
 # Инициализация БД
 def init_db():
-    conn = sqlite3.connect("bot.db")
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS tags (
@@ -31,7 +36,7 @@ def init_db():
 
 # Сохранение информации о изображении
 def save_image_to_database(user_id: int, file_id: str):
-    conn = sqlite3.connect("bot.db")
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO user_images (user_id, file_id) VALUES (?, ?)",
@@ -41,7 +46,7 @@ def save_image_to_database(user_id: int, file_id: str):
     conn.close()
 
 def save_tag_to_database(name: str):
-    conn = sqlite3.connect("bot.db")
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO tags (name) VALUES (?)",
@@ -51,7 +56,7 @@ def save_tag_to_database(name: str):
     conn.close()
 
 def save_image_tag_to_database(image_id: int, tag_id: int):
-    conn = sqlite3.connect("bot.db")
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO image_tags (image_id, tag_id) VALUES (?, ?)",
@@ -61,7 +66,7 @@ def save_image_tag_to_database(image_id: int, tag_id: int):
     conn.close()
 
 def save_to_database(user_id: int, file_id: str, tag_names: list[str]):
-    conn = sqlite3.connect("bot.db")
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
     try:
@@ -94,5 +99,27 @@ def save_to_database(user_id: int, file_id: str, tag_names: list[str]):
         conn.rollback()
         print(f"Ошибка при сохранении в БД: {e}")
         return False
+    finally:
+        conn.close()
+
+def get_images_by_tags(tag_names: list[str]) -> list[tuple]:
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    
+    try:
+        placeholders = ",".join(["?"] * len(tag_names))
+        
+        cursor.execute(f"""
+            SELECT DISTINCT user_images.file_id FROM user_images
+            JOIN image_tags ON user_images.id = image_tags.image_id
+            JOIN tags ON image_tags.tag_id = tags.id
+            WHERE tags.name IN ({placeholders})
+        """, tag_names)
+        
+        result = cursor.fetchall()
+        return [row[0] for row in result]
+    except Exception as e:
+        print(f"Ошибка при поиске изображений: {e}")
+        return []
     finally:
         conn.close()
