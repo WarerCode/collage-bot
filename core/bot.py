@@ -3,9 +3,10 @@ from dotenv import load_dotenv  # for parsing .env file
 import telebot
 from telebot import types
 from core.actions import get_collage, load_image # all buttons processors
-from core.common import *   # bot phrases
+from core.common import *   # bot
+from database import *      # init popular tags
 
-load_dotenv(r'config.env')
+load_dotenv(r'E:\портфолио студента\материалы\2024 - 2025\events\summer\collage bot\config.env')
 BOT_API_KEY = os.getenv('BOT_API_KEY')
 
 bot = telebot.TeleBot(BOT_API_KEY)  # generates bot entity
@@ -21,6 +22,12 @@ load_image_action = types.KeyboardButton(LOAD_IMAGE)
 
 markup.add(get_collage_action, load_image_action)
 # TODO: optionally we can add info_action, which send links to us repo and all that ...
+
+
+# once initialize inline buttons block
+POPULAR_TAGS        = []    # TODO: DB response @JaneeWaterlemonka
+choose_board        = types.InlineKeyboardMarkup([]) # TODO: DB response @JaneeWaterlemonka
+
 
 # global dialog context for handlers
 DIALOG_MODE         = 'private'
@@ -88,6 +95,12 @@ def start_send_messages(message) -> None:
                 IS_WAITING_TAGS = True # set dialog context
                 CURRENT_REQUEST = PURPOSES[1]
 
+                bot.send_message(message.chat.id,
+                                 answer,
+                                 reply_markup=choose_board,
+                                 parse_mode='html')  # every answer sending as html text
+                return
+
             elif prompt == LOAD_IMAGE:
                 answer = LOAD_IMAGE_MANUAL_MSG
                 IS_WAITING_IMAGE = True # set dialog context
@@ -98,7 +111,7 @@ def start_send_messages(message) -> None:
 
         bot.send_message(message.chat.id,
                          answer,
-                         parse_mode='html') # every answer sending as .md text
+                         parse_mode='html') # every answer sending as html text
 
     else:
         print(f"something went wrong, non expected chat type from {message.chat.id}")
@@ -138,6 +151,10 @@ def photo_send_message(message) -> None:
                      reply_markup=markup,
                      parse_mode='html')
 
+
+@bot.callback_query_handler(func=lambda call: call.data in POPULAR_TAGS)
+def inline_buttons_handler(call):
+    pass
 
 # vvv RUNNING vvv
 if __name__ == "__main__":
