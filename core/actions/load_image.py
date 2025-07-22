@@ -1,5 +1,7 @@
-import telebot
-from telebot import types
+from core.common import * # bot phrases
 
-def call(message) -> str:
+def help(message) -> str:
     return "load image called"
+
+def process(message) -> str:
+    return SUCCESS_MSG

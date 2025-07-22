@@ -3,8 +3,9 @@ from dotenv import load_dotenv  # for parsing .env file
 import telebot
 from telebot import types
 from core.actions import get_collage, load_image # all buttons processors
+from core.common import *   # bot phrases
 
-load_dotenv('config.env')
+load_dotenv(r'E:\портфолио студента\материалы\2024 - 2025\events\summer\collage bot\config.env')
 BOT_API_KEY = os.getenv('BOT_API_KEY')
 
 bot = telebot.TeleBot(BOT_API_KEY)  # generates bot entity
@@ -22,6 +23,12 @@ markup.add(get_collage_action, load_image_action)
 # TODO: optionally we can add info_action, which send links to us repo and all that ...
 
 
+# global dialog context for handlers
+IS_WAITING_IMAGE    = False
+IS_WAITING_TAGS     = False
+PURPOSES = ["load_image", "get_collage"]    # enumerator
+CURRENT_REQUEST = "chill"                   # contains enumerator's value
+
 @bot.message_handler(commands=['start'])
 def welcome(message) -> None:
     '''
@@ -32,11 +39,9 @@ def welcome(message) -> None:
     :return: None
     '''
     bot.send_message(message.chat.id,
-                     '''
-                     Here located @TopShizoid2010's message
-                     You can set parse mode: 'html' or 'markdown' maybe
-                     ''',
-                     reply_markup=markup)
+                     HELLO_MSG, # common.py::
+                     reply_markup=markup,
+                     parse_mode='html')
 
 
 @bot.message_handler(content_types=["text"])
@@ -46,26 +51,84 @@ def start_send_messages(message) -> None:
     :param message: telebot.types.Message
     :return: None
     '''
+    global IS_WAITING_IMAGE, IS_WAITING_TAGS, PURPOSES, CURRENT_REQUEST
+
     if message.chat.type == 'private':
         prompt = message.text
 
-        if prompt == MAKE_COLLAGE:
-            answer = get_collage.call(message)
+        if IS_WAITING_TAGS: #bot waiting tags for loading photo
 
-        elif prompt == LOAD_IMAGE:
-            answer = load_image.call(message)
+            if CURRENT_REQUEST == PURPOSES[0]:  # TODO: LOAD_IMAGE action
+                answer = SUCCESS_MSG
+                IS_WAITING_TAGS = False
+
+            elif CURRENT_REQUEST == PURPOSES[1]:    # get collage action branch
+                answer = get_collage.help(message)
+                answer += get_collage.process(message)
+                photo = get_collage.get_instance()
+                bot.send_photo(message.chat.id,
+                               photo)  # sending photo as byte array
+
+                if get_collage.is_ok():
+                    IS_WAITING_TAGS = False
+                else:
+                    answer = user_mistake_msg()  # common.py::
+
+            else:
+                print(f"something went wrong, undefined request from {message.chat.id}")
+                answer = "Упси Вупси, я ошибся ((\n"
+                answer += user_mistake_msg()
 
         else:
-            # TODO: TopShizoid2010, change it maybe:
-            answer = "Пожалуйста, используйте кнопки, я не понимаю команду"
+            if prompt == MAKE_COLLAGE:
+                answer = LOAD_IMAGE_TAGS_PLS_MSG # TODO: GET_COLLAGE_TAGS_PLS_MSG
+                IS_WAITING_TAGS = True # set dialog context
+                CURRENT_REQUEST = PURPOSES[1]
+
+            elif prompt == LOAD_IMAGE:
+                answer = LOAD_IMAGE_MANUAL_MSG
+                IS_WAITING_IMAGE = True # set dialog context
+                CURRENT_REQUEST = PURPOSES[0]
+
+            else:
+                answer = UNEXPECTED_TEXT_MSG
 
         bot.send_message(message.chat.id,
                          answer,
-                         parse_mode='markdown') # every answer sending as .md text
+                         parse_mode='html') # every answer sending as .md text
+
     else:
-        # TODO: send diagnostics log
-        pass
-    pass
+        print(f"something went wrong, non private chat type from {message.chat.id}")
+
+
+@bot.message_handler(content_types=['photo'])   # answer to all photos
+def photo_send_message(message) -> None:
+    '''
+    This handler tracking all sended photos
+    depending on context
+    :param message: telebot.types.Message
+    :return: None
+    '''
+    global IS_WAITING_IMAGE, IS_WAITING_TAGS
+
+    if IS_WAITING_IMAGE:
+        load_image.process(message)
+        IS_WAITING_IMAGE    = False    # reset dialog context
+        IS_WAITING_TAGS     = True
+
+        answer = LOAD_IMAGE_TAGS_PLS_MSG
+
+    else:
+        # TODO: @TopShizoid, make help message, please, 'html' or 'markdown' too:
+        answer = '''
+            Here located @TopShizoid2010's help message
+            You can set parse mode: 'html' or 'markdown' maybe
+            '''
+
+    bot.send_message(message.chat.id,
+                     answer,
+                     reply_markup=markup,
+                     parse_mode='html')
 
 
 # vvv RUNNING vvv
