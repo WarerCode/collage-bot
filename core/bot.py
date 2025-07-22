@@ -25,8 +25,8 @@ markup.add(get_collage_action, load_image_action)
 
 
 # once initialize inline buttons block
-POPULAR_TAGS        = ["#derpy"]    # TODO: DB response @JaneeWaterlemonka
-choose_board        = types.InlineKeyboardMarkup([[types.InlineKeyboardButton("#derpy", callback_data="#derpy")]]) # TODO: DB response @JaneeWaterlemonka
+POPULAR_TAGS        = ["#derpy"]
+choose_board        = types.InlineKeyboardMarkup([[types.InlineKeyboardButton("#derpy", callback_data="#derpy")]])
 
 
 # global dialog context for handlers
@@ -177,6 +177,7 @@ def inline_buttons_handler(call):
                          @topShizoid2010, make error message for inline button response
                          ''',
                          parse_mode='html')
+
 
 # vvv RUNNING vvv
 if __name__ == "__main__":
