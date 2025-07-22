@@ -25,8 +25,8 @@ markup.add(get_collage_action, load_image_action)
 
 
 # once initialize inline buttons block
-POPULAR_TAGS        = []    # TODO: DB response @JaneeWaterlemonka
-choose_board        = types.InlineKeyboardMarkup([]) # TODO: DB response @JaneeWaterlemonka
+POPULAR_TAGS        = ["#derpy"]    # TODO: DB response @JaneeWaterlemonka
+choose_board        = types.InlineKeyboardMarkup([[types.InlineKeyboardButton("#derpy", callback_data="#derpy")]]) # TODO: DB response @JaneeWaterlemonka
 
 
 # global dialog context for handlers
@@ -154,7 +154,29 @@ def photo_send_message(message) -> None:
 
 @bot.callback_query_handler(func=lambda call: call.data in POPULAR_TAGS)
 def inline_buttons_handler(call):
-    pass
+    global IS_WAITING_TAGS, CURRENT_REQUEST, PURPOSES
+
+    try:
+        if call.message:
+            if call.data in POPULAR_TAGS:
+                IS_WAITING_TAGS = True          # set dialog context
+                CURRENT_REQUEST = PURPOSES[1]   # get collage
+
+                start_send_messages(call.message)
+                bot.answer_callback_query(call.id)
+                return
+
+        print(f"something went wrong, failed to save image buffer from {call.message.chat.id}")
+        raise RuntimeError("inline button callback crashed")
+
+    except Exception as e:
+        print(f"something went wrong, failed to save image buffer from {call.message.chat.id}")
+        print(e)
+        bot.send_message(call.message.chat.id,
+                         r'''
+                         @topShizoid2010, make error message for inline button response
+                         ''',
+                         parse_mode='html')
 
 # vvv RUNNING vvv
 if __name__ == "__main__":
