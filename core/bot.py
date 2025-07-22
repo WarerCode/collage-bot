@@ -5,7 +5,7 @@ from telebot import types
 from core.actions import get_collage, load_image # all buttons processors
 from core.common import *   # bot phrases
 
-load_dotenv(r'E:\портфолио студента\материалы\2024 - 2025\events\summer\collage bot\config.env')
+load_dotenv(r'config.env')
 BOT_API_KEY = os.getenv('BOT_API_KEY')
 
 bot = telebot.TeleBot(BOT_API_KEY)  # generates bot entity
