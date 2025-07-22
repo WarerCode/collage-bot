@@ -36,6 +36,11 @@ IS_WAITING_TAGS     = False
 PURPOSES = ["load_image", "get_collage"]    # enumerator
 CURRENT_REQUEST = "chill"                   # contains enumerator's value
 
+
+# initialize DB once (IF NOT EXIST)
+init_db()
+
+
 @bot.message_handler(commands=['start'])
 def welcome(message) -> None:
     '''
@@ -128,7 +133,10 @@ def photo_send_message(message) -> None:
     global IS_WAITING_IMAGE, IS_WAITING_TAGS
 
     if IS_WAITING_IMAGE:
-        ok = load_image.save_to_buffer(message.photo)
+        photo = message.photo[-1]
+        file_info = bot.get_file(photo.file_id)
+        downloaded_file = bot.download_file(file_info.file_path)
+        ok = load_image.save_to_buffer(downloaded_file, photo.file_id)
 
         if ok:
             IS_WAITING_IMAGE    = False    # reset dialog context
