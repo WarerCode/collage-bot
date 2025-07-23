@@ -2,7 +2,7 @@ import sqlite3
 from dotenv import load_dotenv
 import os
 
-load_dotenv(r'E:\портфолио студента\материалы\2024 - 2025\events\summer\collage bot\config.env')
+load_dotenv('config.env')
 DB_NAME = os.getenv('DB_NAME')
 
 # Инициализация БД

@@ -1,7 +1,5 @@
 import os
 import re
-import telebot
-from telebot import types
 from core.common import EXPECTED_FORMATS, MAX_FILE_SIZE
 from core.database import save_to_database
 

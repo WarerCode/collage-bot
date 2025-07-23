@@ -7,7 +7,7 @@ from core.actions.get_collage import get_collage_by_tags, build_inline_keyboard
 from core.common import *   # bot
 from database import *      # init popular tags
 
-load_dotenv(r'E:\портфолио студента\материалы\2024 - 2025\events\summer\collage bot\config.env')
+load_dotenv('config.env')
 BOT_API_KEY = os.getenv('BOT_API_KEY')
 
 bot = telebot.TeleBot(BOT_API_KEY)  # generates bot entity
@@ -17,6 +17,8 @@ markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
 MAKE_COLLAGE = "Составить коллаж"
 LOAD_IMAGE = "Загрузить изображение"
+START = "start"
+COMMANDS = [MAKE_COLLAGE, LOAD_IMAGE, START]
 
 get_collage_action = types.KeyboardButton(MAKE_COLLAGE)
 load_image_action = types.KeyboardButton(LOAD_IMAGE)
@@ -33,7 +35,7 @@ choose_board = build_inline_keyboard(POPULAR_TAGS)
 init_db()
 
 
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=[START])
 def welcome(message) -> None:
     """
     Here we can use stickers and all that ...
@@ -46,6 +48,19 @@ def welcome(message) -> None:
                      HELLO_MSG, # common.py::
                      reply_markup=markup,
                      parse_mode='html')
+
+
+@bot.message_handler(func=lambda m: m.text not in COMMANDS)
+def non_request_handler(message):
+    bot.send_message(message.chat.id,
+                     UNEXPECTED_TEXT_MSG,  # common.py::
+                     reply_markup=markup,
+                     parse_mode='html')
+
+
+@bot.message_handler(content_types=['document'])
+def file_handler(message):
+    pass
 
 
 @bot.message_handler(func=lambda m: m.text == LOAD_IMAGE)
@@ -73,11 +88,12 @@ def callback_load_image(message):
         photo = message.photo[-1]
         file_id = photo.file_id
         file_info = bot.get_file(file_id)
-        downloaded_file = bot.download_file(file_info.file_path)
 
         ok, errors = check_load_image_rules(file_info)
         if not ok:
             raise RuntimeError("\n\n".join(errors))
+
+        downloaded_file = bot.download_file(file_info.file_path)
 
         os.makedirs('images', exist_ok=True)
         file_path = f"images/{file_id}.jpg"
