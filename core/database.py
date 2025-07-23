@@ -12,7 +12,8 @@ def init_db():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS tags (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-        name VARCHAR NOT NULL UNIQUE
+        name VARCHAR NOT NULL UNIQUE,
+        popularity INTEGER DEFAULT 0
     )
     """)
     cursor.execute("""
@@ -45,6 +46,7 @@ def save_image_to_database(user_id: int, file_id: str):
     conn.commit()
     conn.close()
 
+# Сохранение информации о теге
 def save_tag_to_database(name: str):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -55,6 +57,7 @@ def save_tag_to_database(name: str):
     conn.commit()
     conn.close()
 
+# Сохранение информации о связи тега и изображения
 def save_image_tag_to_database(image_id: int, tag_id: int):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -65,6 +68,8 @@ def save_image_tag_to_database(image_id: int, tag_id: int):
     conn.commit()
     conn.close()
 
+# Сохранение полной информации о изображении и связных с ним тегов
+# (Использовать в load_image)
 def save_to_database(user_id: int, file_id: str, tag_names: list[str]):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -102,6 +107,7 @@ def save_to_database(user_id: int, file_id: str, tag_names: list[str]):
     finally:
         conn.close()
 
+# Получение списка айди изображений по списку тегов
 def get_images_by_tags(tag_names: list[str]) -> list[tuple]:
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -123,3 +129,44 @@ def get_images_by_tags(tag_names: list[str]) -> list[tuple]:
         return []
     finally:
         conn.close()
+
+# Увеличение популярности для списка тегов
+def increment_tag_popularity(tag_names: list[str]):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    try:
+        cursor.executemany(
+            "UPDATE tags SET popularity = popularity + 1 WHERE name = ?",
+            [(name,) for name in tag_names]
+        )
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Ошибка при обновлении популярности тегов: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+# Получение N наиболее популярных тегов (список названий)
+def get_most_popular_tags(n: int=4):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT name FROM tags 
+            ORDER BY popularity DESC
+            LIMIT ?
+        """, (n,))
+        conn.commit()
+        result = cursor.fetchall()
+        return [row[0] for row in result]
+    except Exception as e:
+        print(f"Ошибка при получении {n} наиболее популярных тегов: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
