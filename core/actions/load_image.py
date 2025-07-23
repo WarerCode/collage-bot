@@ -18,18 +18,23 @@ def process(message) -> str:    # TODO: JaneeWaterlemonka !!!! it's Your, babe v
     chat_id = message.chat.id
     prompt  = message.text
     tags    = parse_tags(prompt)
+    answer = SUCCESS_MSG
 
     errors = []
     if is_valid_prompt(tags, errors) and is_ok():
         save_image_to_database(chat_id, str(FILE_ID))
         ok = save_to_database(chat_id, FILE_ID, tags)
+        if not ok:
+            answer = "Вадим, сюда допиши сообщение об ошибке сохранения изображения"
+
         increment_tag_popularity(tags)
 
     else:
         print(f"invalid prompt or troubles with buffer from {chat_id}, file {FILE_ID}")
+        errors.append(user_mistake_msg())
         return '\n\n'.join(errors)
 
-    return SUCCESS_MSG
+    return answer
 
 
 def parse_tags(prompt) -> list[str]:

@@ -25,8 +25,13 @@ def process(message) -> str:
 
     errors = list[str]()
     if is_valid_prompt(tags, errors):
-        answer = "success string :: get_collage :: process(message)"
+
+        # TODO: @topShizoid2010 make here collage gotten msg vvv
         COLLAGE = build_collage(tags)
+        if is_ok():
+            answer = "Ураааа, вы получили то, что хотели"
+        else:
+            answer = "Блин блинский, как неловко вышло"
 
     else:
         error_string = '\n'.join(errors)
