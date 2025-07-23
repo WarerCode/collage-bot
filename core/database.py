@@ -46,6 +46,7 @@ def save_image_to_database(user_id: int, file_id: str):
     conn.commit()
     conn.close()
 
+# Сохранение информации о теге
 def save_tag_to_database(name: str):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -56,6 +57,7 @@ def save_tag_to_database(name: str):
     conn.commit()
     conn.close()
 
+# Сохранение информации о связи тега и изображения
 def save_image_tag_to_database(image_id: int, tag_id: int):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -66,6 +68,8 @@ def save_image_tag_to_database(image_id: int, tag_id: int):
     conn.commit()
     conn.close()
 
+# Сохранение полной информации о изображении и связных с ним тегов
+# (Использовать в load_image)
 def save_to_database(user_id: int, file_id: str, tag_names: list[str]):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -103,6 +107,7 @@ def save_to_database(user_id: int, file_id: str, tag_names: list[str]):
     finally:
         conn.close()
 
+# Получение списка айди изображений по списку тегов
 def get_images_by_tags(tag_names: list[str]) -> list[tuple]:
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -125,6 +130,7 @@ def get_images_by_tags(tag_names: list[str]) -> list[tuple]:
     finally:
         conn.close()
 
+# Увеличение популярности для списка тегов
 def increment_tag_popularity(tag_names: list[str]):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -143,6 +149,7 @@ def increment_tag_popularity(tag_names: list[str]):
     finally:
         conn.close()
 
+# Получение N наиболее популярных тегов (список названий)
 def get_most_popular_tags(n: int=4):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
