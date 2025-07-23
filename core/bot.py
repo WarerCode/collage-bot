@@ -2,6 +2,7 @@ import os                       # for loading .env file
 from dotenv import load_dotenv  # for parsing .env file
 import telebot
 from telebot import types
+from core.database import get_most_popular_tags
 from core.actions import get_collage, load_image # all buttons processors
 from core.common import *   # bot
 from database import *      # init popular tags
@@ -25,8 +26,8 @@ markup.add(get_collage_action, load_image_action)
 
 
 # once initialize inline buttons block
-POPULAR_TAGS        = ["#derpy"]
-choose_board        = types.InlineKeyboardMarkup([[types.InlineKeyboardButton("#derpy", callback_data="#derpy")]])
+POPULAR_TAGS        = get_most_popular_tags()
+choose_board        = get_collage.get_inline_markup()
 
 
 # global dialog context for handlers

@@ -1,4 +1,7 @@
 from typing import BinaryIO
+from core.database import *
+import telebot
+from telebot import types
 
 COLLAGE = ''    # collage as byte array
 COLLAGE_GIVEN_SUCCESSFULLY = True
@@ -84,3 +87,30 @@ def get_instance() -> BinaryIO:
 
 def is_ok() -> bool:
     return COLLAGE_GIVEN_SUCCESSFULLY
+
+
+def get_inline_markup():
+    """
+    Here constructing inline buttons keyboard
+    :return: final keyboard
+    """
+    tags_count = 4
+    tags = get_most_popular_tags(tags_count)
+    max_rows = 3    # less or equals three rows
+    max_cols = 2    # two in line
+
+    board_table = []
+    try:
+        for i in range(max_rows):
+            line = []
+            for j in range(max_cols):
+                tag = tags[i*max_cols+j]
+                button = types.InlineKeyboardButton(tag, callback_data=tag)
+                line.append(button)
+            board_table.append(line)
+
+    except Exception as e:
+        print(f"failed to construct inline keyboard: {e}")
+        return types.InlineKeyboardMarkup([])
+
+    return types.InlineKeyboardMarkup(board_table)

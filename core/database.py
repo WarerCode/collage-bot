@@ -166,7 +166,7 @@ def get_most_popular_tags(n: int=4):
     except Exception as e:
         print(f"Ошибка при получении {n} наиболее популярных тегов: {e}")
         conn.rollback()
-        return False
+        return []
     finally:
         conn.close()
 

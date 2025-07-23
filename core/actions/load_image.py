@@ -23,6 +23,7 @@ def process(message) -> str:    # TODO: JaneeWaterlemonka !!!! it's Your, babe v
     if is_valid_prompt(tags, errors) and is_ok():
         save_image_to_database(chat_id, str(FILE_ID))
         save_to_database(chat_id, FILE_ID, tags)
+        increment_tag_popularity(tags)
 
     else:
         print(f"invalid prompt or troubles with buffer from {chat_id}, file {FILE_ID}")
