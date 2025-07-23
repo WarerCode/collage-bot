@@ -12,7 +12,8 @@ def init_db():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS tags (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-        name VARCHAR NOT NULL UNIQUE
+        name VARCHAR NOT NULL UNIQUE,
+        popularity INTEGER DEFAULT 0
     )
     """)
     cursor.execute("""
@@ -123,3 +124,42 @@ def get_images_by_tags(tag_names: list[str]) -> list[tuple]:
         return []
     finally:
         conn.close()
+
+def increment_tag_popularity(tag_names: list[str]):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    try:
+        cursor.executemany(
+            "UPDATE tags SET popularity = popularity + 1 WHERE name = ?",
+            [(name,) for name in tag_names]
+        )
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Ошибка при обновлении популярности тегов: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+def get_most_popular_tags(n: int=4):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT name FROM tags 
+            ORDER BY popularity DESC
+            LIMIT ?
+        """, (n,))
+        conn.commit()
+        result = cursor.fetchall()
+        return [row[0] for row in result]
+    except Exception as e:
+        print(f"Ошибка при получении {n} наиболее популярных тегов: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
