@@ -1,80 +1,60 @@
-from core.common import * # bot phrases
-from core.database import * #saving
+import os
+import re
+import telebot
+from telebot import types
+from core.common import EXPECTED_FORMATS, MAX_FILE_SIZE
+from core.database import save_to_database
 
-IMAGE_LOADED_SUCCESSFULLY = True
-IMAGE   = ''
-FILE_ID = ''
+"""
+LoadImageBuffer is a special class which contains
+file_info attributes for saving in db
+'save_to_database' & 'LoadImageBuffer.__init__' signature are same 
+"""
+class LoadImageBuffer:
+    def __init__(self, user_id: int=0, file_id: str=''):
+        self.user_id = user_id
+        self.file_id = file_id
 
-def process(message) -> str:    # TODO: JaneeWaterlemonka !!!! it's Your, babe vvv
-    """
-    This function parsing tags and binds
-    photo from buffer with it
-    after photo with tags saving in DB
-    :param message: telegram.user.message
-    :return: status response
-    """
-    global IMAGE, FILE_ID
+    def load(self, user_id: int, file_id: str):
+        self.user_id = user_id
+        self.file_id = file_id
 
-    chat_id = message.chat.id
-    prompt  = message.text
-    tags    = parse_tags(prompt)
-    answer = SUCCESS_MSG
+# static buffer for db
+LOAD_IMAGE_BUFFER = LoadImageBuffer(0, '')
+
+def check_load_image_rules(file_info) -> (bool, list[str]):
+    file_path = file_info.file_path
+    format = os.path.splitext(file_path)[1].lower()
+    file_size = file_info.file_size
 
     errors = []
-    if is_valid_prompt(tags, errors) and is_ok():
-        save_image_to_database(chat_id, str(FILE_ID))
-        ok = save_to_database(chat_id, FILE_ID, tags)
-        if not ok:
-            answer = "Вадим, сюда допиши сообщение об ошибке сохранения изображения"
+    res = True
+    if format not in EXPECTED_FORMATS:
+        errors.append("@topShizoid2010 - unexpected or undefined format checking failed msg :: common.py")
+        res = False
+    if file_size >= MAX_FILE_SIZE:
+        errors.append("@topShizoid2010 - too large file msg :: common.py")
+        res = False
 
-        increment_tag_popularity(tags)
-
-    else:
-        print(f"invalid prompt or troubles with buffer from {chat_id}, file {FILE_ID}")
-        errors.append(user_mistake_msg())
-        return '\n\n'.join(errors)
-
-    return answer
+    return (res, errors)
 
 
-def parse_tags(prompt) -> list[str]:
-    return [prompt]
+def save_to_buffer(user_id: int, file_id: str):
+    global LOAD_IMAGE_BUFFER
+    LOAD_IMAGE_BUFFER.load(user_id, file_id)
 
 
-def is_valid_prompt(tags: list[str], errors: list[str]) -> bool:
-    # TODO: maybe given too much tags > 5 maybe
-    return True
+def bind_buffer_data_with_tags(hashtags: list[str]) -> (bool, list[str]):
+    ok = save_to_database(LOAD_IMAGE_BUFFER.user_id,
+                     LOAD_IMAGE_BUFFER.file_id,
+                     hashtags)
 
-    limit = 5
-    ok = True
-
-    if len(tags) > limit:
-        errors.append("Слишком много тегов, попробуйте меньше")
-        ok = False
-
-    return ok
+    errors = []
+    if not ok:
+        errors.append("@topShizoid - failed to bind image data with tags")
+    return (ok, errors)
 
 
-def save_to_buffer(photo, file_id) -> bool:
-    """
-    Сохраняет фото в буфер и проверяет, что данные не пустые
-    :param photo: байтовый массив с изображением
-    :return: True, если данные сохранены корректно, False - если нет
-    """
-    global IMAGE_LOADED_SUCCESSFULLY, IMAGE, FILE_ID
-
-    if photo and isinstance(photo, (bytes, bytearray)) and len(photo) > 0:
-        IMAGE = photo
-        FILE_ID = file_id
-        IMAGE_LOADED_SUCCESSFULLY = True
-    else:
-        IMAGE_LOADED_SUCCESSFULLY = False
-
-    return IMAGE_LOADED_SUCCESSFULLY
-
-
-def is_ok() -> bool:
-    """
-    :return: current load image action context status
-    """
-    return IMAGE_LOADED_SUCCESSFULLY
+def extract_hashtags(prompt: str):
+    hashtags = re.findall(r'#\w+', prompt)
+    return hashtags
