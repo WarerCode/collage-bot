@@ -22,7 +22,7 @@ def process(message) -> str:    # TODO: JaneeWaterlemonka !!!! it's Your, babe v
     errors = []
     if is_valid_prompt(tags, errors) and is_ok():
         save_image_to_database(chat_id, str(FILE_ID))
-        save_to_database(chat_id, FILE_ID, tags)
+        ok = save_to_database(chat_id, FILE_ID, tags)
         increment_tag_popularity(tags)
 
     else:
@@ -33,7 +33,7 @@ def process(message) -> str:    # TODO: JaneeWaterlemonka !!!! it's Your, babe v
 
 
 def parse_tags(prompt) -> list[str]:
-    pass
+    return [prompt]
 
 
 def is_valid_prompt(tags: list[str], errors: list[str]) -> bool:

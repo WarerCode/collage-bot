@@ -100,10 +100,12 @@ def save_to_database(user_id: int, file_id: str, tag_names: list[str]):
         conn.commit()
         print("Успех")
         return True
+
     except Exception as e:
         conn.rollback()
         print(f"Ошибка при сохранении в БД: {e}")
         return False
+
     finally:
         conn.close()
 
@@ -124,9 +126,11 @@ def get_images_by_tags(tag_names: list[str]) -> list[tuple]:
         
         result = cursor.fetchall()
         return [row[0] for row in result]
+
     except Exception as e:
         print(f"Ошибка при поиске изображений: {e}")
         return []
+
     finally:
         conn.close()
 
@@ -142,10 +146,12 @@ def increment_tag_popularity(tag_names: list[str]):
         )
         conn.commit()
         return True
+
     except Exception as e:
         print(f"Ошибка при обновлении популярности тегов: {e}")
         conn.rollback()
         return False
+
     finally:
         conn.close()
 
@@ -163,10 +169,12 @@ def get_most_popular_tags(n: int=4):
         conn.commit()
         result = cursor.fetchall()
         return [row[0] for row in result]
+
     except Exception as e:
         print(f"Ошибка при получении {n} наиболее популярных тегов: {e}")
         conn.rollback()
         return []
+
     finally:
         conn.close()
 

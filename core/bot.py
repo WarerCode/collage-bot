@@ -71,7 +71,7 @@ def start_send_messages(message) -> None:
 
         if IS_WAITING_TAGS: #bot waiting tags for loading photo
 
-            if CURRENT_REQUEST == PURPOSES[0]:
+            if CURRENT_REQUEST == PURPOSES[0]:      # load image action branch
                 answer  = load_image.process(message)
 
                 if load_image.is_ok():

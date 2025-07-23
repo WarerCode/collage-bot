@@ -104,13 +104,16 @@ def get_inline_markup():
         for i in range(max_rows):
             line = []
             for j in range(max_cols):
-                tag = tags[i*max_cols+j]
+                index = i*max_cols+j
+                if index >= tags_count:
+                    break
+
+                tag = tags[index]
                 button = types.InlineKeyboardButton(tag, callback_data=tag)
                 line.append(button)
             board_table.append(line)
 
     except Exception as e:
         print(f"failed to construct inline keyboard: {e}")
-        return types.InlineKeyboardMarkup([])
 
     return types.InlineKeyboardMarkup(board_table)

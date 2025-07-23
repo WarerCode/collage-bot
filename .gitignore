@@ -3,6 +3,7 @@ __pycache__/
 .idea/
 *.py[codz]
 *$py.class
+*.db
 *.env
 
 # C extensions
