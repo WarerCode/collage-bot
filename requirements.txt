@@ -5,4 +5,3 @@ pyTelegramBotAPI==4.27.0
 python-dotenv==1.1.1
 requests==2.32.4
 urllib3==2.5.0
-social_collage==1.0.0

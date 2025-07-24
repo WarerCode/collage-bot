@@ -1,11 +1,14 @@
 import telebot
 from telebot import types
-from core.common import MAX_INLINE_ROWS, MAX_INLINE_COLS
-from core.database import get_images_by_tags
 import social_collage
 from PIL import Image
+from math import floor, sqrt
+from core.common import MAX_INLINE_ROWS, MAX_INLINE_COLS
+from core.database import get_images_by_tags
 
 LOGO = open(r"E:\портфолио студента\материалы\2024 - 2025\events\summer\collage bot\core\assets\logo.jfif", 'rb')
+CAPACITY_SEQUENCE = [2, 4, 9]
+MAX_SHEET_SIZE = (1024, 1024)
 
 def get_collage_by_tags(hashtags: list[str]):
     """
@@ -19,6 +22,18 @@ def get_collage_by_tags(hashtags: list[str]):
     errors = []
 
     file_ids = get_images_by_tags(hashtags)
+
+
+
+    # calculate count of photos - DONE
+    count = photo_count(len(file_ids))
+    file_ids = file_ids[0:count]
+
+    # calculate grid
+    # calculate basic size of field
+    # randomly increment size
+    # build grid layout
+
     if not file_ids:
         errors.append("@topShizoid - failed to get file ids for collage msg :: common.py")
         ok = False
@@ -28,7 +43,7 @@ def get_collage_by_tags(hashtags: list[str]):
         collage = social_collage.collage_4_2(
         imgs,
         bgcolor=(255, 255, 255),
-        spaceshare=100,
+        spaceshare=0,
         )
 
     except Exception as e:
@@ -54,3 +69,16 @@ def build_inline_keyboard(hashtags: list[str]):
         board.append(line)
 
     return types.InlineKeyboardMarkup(board)
+
+
+def photo_count(size: int):
+    res = size
+    for c in CAPACITY_SEQUENCE:
+        if size < c:
+            return res
+        res = c
+    return CAPACITY_SEQUENCE[-1]
+
+
+def field_size(count: int, sheet_size: (int, int)):
+    photo_in_row = floor(sqrt(count))

@@ -234,13 +234,14 @@ def inline_buttons_handler(call):
         bot.send_photo(call.message.chat.id, collage)
 
     except Exception as e:
-        print(f"inline_buttons_handler:: request text: {call.message.text}; chat: {call.message.chat.id}; Error: {e}")
+        print(f"inline_buttons_handler:: chat: {call.message.chat.id}; Error: {e}")
         bot.reply_to(call.message, f"{e}\n",
                      parse_mode='html')
         bot.send_message(call.message.chat.id,
                          user_mistake_msg(),
                          parse_mode='html')
-        bot.clear_step_handler(call.message) # unregister next handler, clear context
+
+    bot.clear_step_handler(call.message) # unregister next handler, clear context
 
 
 # vvv RUNNING vvv
