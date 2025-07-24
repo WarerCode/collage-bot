@@ -2,7 +2,7 @@ import sqlite3
 from dotenv import load_dotenv
 import os
 
-load_dotenv('config.env')
+load_dotenv(r'config.env')
 DB_NAME = os.getenv('DB_NAME')
 
 # Инициализация БД

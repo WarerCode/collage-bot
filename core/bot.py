@@ -7,7 +7,7 @@ from core.actions.get_collage import get_collage_by_tags, build_inline_keyboard
 from core.common import *   # bot
 from database import *      # init popular tags
 
-load_dotenv('config.env')
+load_dotenv(r'config.env')
 BOT_API_KEY = os.getenv('BOT_API_KEY')
 
 bot = telebot.TeleBot(BOT_API_KEY)  # generates bot entity
@@ -51,16 +51,27 @@ def welcome(message) -> None:
 
 
 @bot.message_handler(func=lambda m: m.text not in COMMANDS)
-def non_request_handler(message):
+def non_request_text_handler(message):
     bot.send_message(message.chat.id,
-                     UNEXPECTED_TEXT_MSG,  # common.py::
+                     UNEXPECTED_MSG,  # common.py::
+                     reply_markup=markup,
+                     parse_mode='html')
+
+
+@bot.message_handler(content_types=['photo'])
+def non_request_photo_handler(message):
+    bot.send_message(message.chat.id,
+                     UNEXPECTED_MSG,  # common.py::
                      reply_markup=markup,
                      parse_mode='html')
 
 
 @bot.message_handler(content_types=['document'])
 def file_handler(message):
-    pass
+    bot.send_message(message.chat.id,
+                     user_mistake_msg(),  # common.py::
+                     reply_markup=markup,
+                     parse_mode='html')
 
 
 @bot.message_handler(func=lambda m: m.text == LOAD_IMAGE)
@@ -220,6 +231,7 @@ def inline_buttons_handler(call):
         bot.send_message(call.message.chat.id,
                          user_mistake_msg(),
                          parse_mode='html')
+        bot.clear_step_handler(call.message) # unregister next handler, clear context
 
 
 # vvv RUNNING vvv
