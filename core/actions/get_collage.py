@@ -1,14 +1,47 @@
-import telebot
+import re
 from telebot import types
-import social_collage
 from PIL import Image
 from math import floor, sqrt
-from core.common import MAX_INLINE_ROWS, MAX_INLINE_COLS
-from core.database import get_images_by_tags
+from common import MAX_INLINE_ROWS, MAX_INLINE_COLS
+from database import *
+from difflib import SequenceMatcher
 
-LOGO = open(r"E:\портфолио студента\материалы\2024 - 2025\events\summer\collage bot\core\assets\logo.jfif", 'rb')
+load_dotenv('config.env')
+MEDIA_ROOT = os.getenv('MEDIA_ROOT')
+
+LOGO = open("core/assets/logo.jpg", 'rb')
 CAPACITY_SEQUENCE = [2, 4, 9]
 MAX_SHEET_SIZE = (1024, 1024)
+
+def prompt_to_list(prompt: str):
+    prompt = prompt.lower()
+    hashtags = list(map(lambda x: x[1:], re.findall(r'#\w+', prompt)))
+    prompt = re.sub(r'#\w+', '', prompt)
+    prompt = re.sub(r'\W', '', prompt)
+    words = prompt.split()
+
+    return list(set(hashtags + words))
+
+# Получение тегов с такими же первыми буквами (список названий)
+def get_close_tags_by_prompt(prompt: str, threshold: float=0.6):
+    maybe_tags = prompt_to_list(prompt)
+
+    try:
+        tags = []
+        db_tags = get_start_tags(maybe_tags)
+
+        for db_tag in db_tags:
+            for maybe_tag in maybe_tags:
+                acceptance = SequenceMatcher(a=db_tag, b=maybe_tag).ratio()
+                if acceptance >= threshold:
+                    tags.append(db_tag)
+                    break
+
+        return tags
+
+    except Exception as e:
+        print(f"Ошибка при получении похожих тегов: {e}")
+        return []
 
 def get_collage_by_tags(hashtags: list[str]):
     """
@@ -22,8 +55,6 @@ def get_collage_by_tags(hashtags: list[str]):
     errors = []
 
     file_ids = get_images_by_tags(hashtags)
-
-
 
     # calculate count of photos - DONE
     count = photo_count(len(file_ids))
@@ -39,12 +70,8 @@ def get_collage_by_tags(hashtags: list[str]):
         ok = False
 
     try:
-        imgs = [Image.open(r"E:/портфолио студента/материалы/2024 - 2025/events/summer/collage bot/core/images/"+id+".jpg") for id in file_ids]
-        collage = social_collage.collage_4_2(
-        imgs,
-        bgcolor=(255, 255, 255),
-        spaceshare=0,
-        )
+        imgs = [Image.open(f"{MEDIA_ROOT}/images/"+id+".jpg") for id in file_ids]
+        collage = imgs[0]
 
     except Exception as e:
         errors.append(f"get_collage.get_collage_by_tags::troubles : {e}")
@@ -78,7 +105,3 @@ def photo_count(size: int):
             return res
         res = c
     return CAPACITY_SEQUENCE[-1]
-
-
-def field_size(count: int, sheet_size: (int, int)):
-    photo_in_row = floor(sqrt(count))

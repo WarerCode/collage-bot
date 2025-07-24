@@ -1,8 +1,9 @@
+import re
 import sqlite3
 from dotenv import load_dotenv
 import os
 
-load_dotenv(r'E:\портфолио студента\материалы\2024 - 2025\events\summer\collage bot\config.env')
+load_dotenv('config.env')
 DB_NAME = os.getenv('DB_NAME')
 
 # Инициализация БД
@@ -177,4 +178,30 @@ def get_most_popular_tags(n: int=4):
 
     finally:
         conn.close()
+
+# Получение тегов с такими же первыми буквами (список названий)
+def get_start_tags(tags: list[str]):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    first_symbols = tuple(set([tag[0] for tag in tags]))
+    question_str = ",".join(['?' for _ in range(len(first_symbols))])
+
+    try:
+        cursor.execute(f"""
+            SELECT name FROM tags 
+            WHERE SUBSTR(name, 1, 1) IN ({question_str})
+        """, first_symbols)
+        conn.commit()
+        result = cursor.fetchall()
+        return [row[0] for row in result]
+
+    except Exception as e:
+        print(f"Ошибка при получении тегов с такими же первыми буквами: {e}")
+        conn.rollback()
+        return []
+
+    finally:
+        conn.close()
+
+
 

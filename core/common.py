@@ -84,7 +84,7 @@ r"""❌<b>Ошибка.</b>
 def user_mistake_msg() -> str:
     return random.choice(USER_MISTAKE_GETUP_MSGS)
 
-def is_valid_tags(hashtags: list[str]) -> (bool, list[str]):
+def is_valid_tags(hashtags: list[str]) -> tuple[bool, list[str]]:
     errors = []
     res = True
     if not hashtags:
@@ -92,16 +92,16 @@ def is_valid_tags(hashtags: list[str]) -> (bool, list[str]):
         res = False
 
     for tag in hashtags:
-        if not tag.startswith('#'):
-            errors.append(f"@topShizoid - invalid tag's {tag} start msg :: common.py")
-            res = False
+        # if not tag.startswith('#'):
+        #     errors.append(f"@topShizoid - invalid tag's {tag} start msg :: common.py")
+        #     res = False
 
         if len(tag) > MAX_TAG_LENGTH:
             errors.append(f"@topShizoid - too large tag {tag} msg :: common.py")
             res = False
 
-        if not re.fullmatch(r'#\w+', tag):
-            errors.append(f"@topShizoid - invalid tag's {tag} syntax msg :: common.py")
-            res = False
+        # if not re.fullmatch(r'#\w+', tag):
+        #     errors.append(f"@topShizoid - invalid tag's {tag} syntax msg :: common.py")
+        #     res = False
 
     return (res, errors)

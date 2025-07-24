@@ -2,13 +2,14 @@ import os                       # for loading .env file, make dirs
 from dotenv import load_dotenv  # for parsing .env file
 import telebot
 from telebot import types
-from core.actions.load_image import check_load_image_rules, extract_hashtags, bind_buffer_data_with_tags, save_to_buffer
-from core.actions.get_collage import get_collage_by_tags, build_inline_keyboard
-from core.common import *   # bot
+from actions.load_image import check_load_image_rules, extract_hashtags, load_image_save_to_database
+from actions.get_collage import get_close_tags_by_prompt, get_collage_by_tags, build_inline_keyboard
+from common import *   # bot
 from database import *      # init popular tags
 
-load_dotenv(r'E:\портфолио студента\материалы\2024 - 2025\events\summer\collage bot\config.env')
+load_dotenv('config.env')
 BOT_API_KEY = os.getenv('BOT_API_KEY')
+MEDIA_ROOT = os.getenv('MEDIA_ROOT')
 
 bot = telebot.TeleBot(BOT_API_KEY)  # generates bot entity
 
@@ -26,13 +27,13 @@ load_image_action = types.KeyboardButton(LOAD_IMAGE)
 markup.add(get_collage_action, load_image_action)
 # TODO: optionally we can add info_action, which send links to us repo and all that ...
 
+# initialize DB once (IF NOT EXIST)
+init_db()
 
 POPULAR_TAGS = get_most_popular_tags(4)
 choose_board = build_inline_keyboard(POPULAR_TAGS)
 
 
-# initialize DB once (IF NOT EXIST)
-init_db()
 
 
 @bot.message_handler(commands=[START])
@@ -106,15 +107,18 @@ def callback_load_image(message):
 
         downloaded_file = bot.download_file(file_info.file_path)
 
-        os.makedirs('images', exist_ok=True)
-        file_path = f"images/{file_id}.jpg"
+        os.makedirs(f'{MEDIA_ROOT}/images', exist_ok=True)
+        file_path = f"{MEDIA_ROOT}/images/{file_id}.jpg"
         with open(file_path, 'wb') as new_file:
             new_file.write(downloaded_file)
 
-        save_to_buffer(message.from_user.id, file_id)
         print(f"callback_load_image::success from user {message.chat.id}")
         bot.reply_to(message, TAGS_PLS_MSG, parse_mode='html')
-        bot.register_next_step_handler(message, callback_load_image_tags)
+        bot.register_next_step_handler(
+            message, 
+            callback_load_image_tags, 
+            kwargs={"user_id": message.from_user.id, "file_id": file_id}
+        )
 
     except Exception as e:
         print(f"callback_load_image:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
@@ -126,7 +130,7 @@ def callback_load_image(message):
         bot.clear_step_handler(message)  # unregister next handler, clear context
 
 
-def callback_load_image_tags(message):
+def callback_load_image_tags(message, kwargs):
     """
     Tags are parsed and checked here,
     and then the buffered data is associated with the image and it's tags
@@ -143,13 +147,15 @@ def callback_load_image_tags(message):
 
         if not ok:
             raise RuntimeError("\n\n".join(errors))
+        
+        user_id = kwargs.get("user_id")
+        file_id = kwargs.get("file_id")
 
-        ok, errors = bind_buffer_data_with_tags(hashtags)
+        ok, errors = load_image_save_to_database(user_id, file_id, hashtags)
 
         if not ok:
             raise RuntimeError("\n\n".join(errors))
 
-        increment_tag_popularity(hashtags)
         bot.reply_to(message, SUCCESS_MSG, parse_mode='html')
 
     except Exception as e:
@@ -190,7 +196,7 @@ def callback_make_collage(message):
             raise ValueError("@topShizoid - invalid content type msg :: common.py")
 
         prompt = message.text
-        hashtags = extract_hashtags(prompt)
+        hashtags = get_close_tags_by_prompt(prompt)
         ok, errors = is_valid_tags(hashtags)
 
         if not ok:

@@ -1,26 +1,9 @@
 import os
 import re
-from core.common import EXPECTED_FORMATS, MAX_FILE_SIZE
-from core.database import save_to_database
+from common import EXPECTED_FORMATS, MAX_FILE_SIZE
+from database import save_to_database
 
-"""
-LoadImageBuffer is a special class which contains
-file_info attributes for saving in db
-'save_to_database' & 'LoadImageBuffer.__init__' signature are same 
-"""
-class LoadImageBuffer:
-    def __init__(self, user_id: int=0, file_id: str=''):
-        self.user_id = user_id
-        self.file_id = file_id
-
-    def load(self, user_id: int, file_id: str):
-        self.user_id = user_id
-        self.file_id = file_id
-
-# static buffer for db
-LOAD_IMAGE_BUFFER = LoadImageBuffer(0, '')
-
-def check_load_image_rules(file_info) -> (bool, list[str]):
+def check_load_image_rules(file_info) -> tuple[bool, list[str]]:
     file_path = file_info.file_path
     format = os.path.splitext(file_path)[1].lower()
     file_size = file_info.file_size
@@ -37,15 +20,8 @@ def check_load_image_rules(file_info) -> (bool, list[str]):
     return (res, errors)
 
 
-def save_to_buffer(user_id: int, file_id: str):
-    global LOAD_IMAGE_BUFFER
-    LOAD_IMAGE_BUFFER.load(user_id, file_id)
-
-
-def bind_buffer_data_with_tags(hashtags: list[str]) -> (bool, list[str]):
-    ok = save_to_database(LOAD_IMAGE_BUFFER.user_id,
-                     LOAD_IMAGE_BUFFER.file_id,
-                     hashtags)
+def load_image_save_to_database(user_id: str, file_id: str, hashtags: list[str]) -> tuple[bool, list[str]]:
+    ok = save_to_database(user_id, file_id, hashtags)
 
     errors = []
     if not ok:
@@ -54,5 +30,7 @@ def bind_buffer_data_with_tags(hashtags: list[str]) -> (bool, list[str]):
 
 
 def extract_hashtags(prompt: str):
-    hashtags = re.findall(r'#\w+', prompt)
+    prompt = prompt.lower()
+    hashtags = list(map(lambda x: x[1:], re.findall(r'#\w+', prompt)))
+
     return hashtags
