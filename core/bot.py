@@ -123,6 +123,7 @@ def callback_load_image(message):
         bot.send_message(message.chat.id,
                          user_mistake_msg(),
                          parse_mode='html')
+        bot.clear_step_handler(message)  # unregister next handler, clear context
 
 
 def callback_load_image_tags(message):
@@ -148,6 +149,7 @@ def callback_load_image_tags(message):
         if not ok:
             raise RuntimeError("\n\n".join(errors))
 
+        increment_tag_popularity(hashtags)
         bot.reply_to(message, SUCCESS_MSG, parse_mode='html')
 
     except Exception as e:
@@ -157,6 +159,7 @@ def callback_load_image_tags(message):
         bot.send_message(message.chat.id,
                          user_mistake_msg(),
                          parse_mode='html')
+        bot.clear_step_handler(message)  # unregister next handler, clear context
 
 
 @bot.message_handler(func=lambda m: m.text == MAKE_COLLAGE)
@@ -164,7 +167,7 @@ def request_make_collage(message):
     global POPULAR_TAGS, choose_board
     POPULAR_TAGS = get_most_popular_tags(4)
     choose_board = build_inline_keyboard(POPULAR_TAGS)
-    
+
     bot.send_message(
         message.chat.id,
         TAGS_PLS_MSG,
@@ -198,6 +201,7 @@ def callback_make_collage(message):
         if not ok:
             raise RuntimeError("\n\n".join(errors))
 
+        increment_tag_popularity(hashtags)
         bot.send_photo(message.chat.id, collage)
 
     except Exception as e:
@@ -207,6 +211,7 @@ def callback_make_collage(message):
         bot.send_message(message.chat.id,
                          user_mistake_msg(),
                          parse_mode='html')
+        bot.clear_step_handler(message)  # unregister next handler, clear context
 
 
 @bot.callback_query_handler(func=lambda call: call.data in POPULAR_TAGS)
