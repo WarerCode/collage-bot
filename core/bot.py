@@ -7,7 +7,7 @@ from core.actions.get_collage import get_collage_by_tags, build_inline_keyboard
 from core.common import *   # bot
 from database import *      # init popular tags
 
-load_dotenv(r'config.env')
+load_dotenv(r'E:\портфолио студента\материалы\2024 - 2025\events\summer\collage bot\config.env')
 BOT_API_KEY = os.getenv('BOT_API_KEY')
 
 bot = telebot.TeleBot(BOT_API_KEY)  # generates bot entity
@@ -161,6 +161,10 @@ def callback_load_image_tags(message):
 
 @bot.message_handler(func=lambda m: m.text == MAKE_COLLAGE)
 def request_make_collage(message):
+    global POPULAR_TAGS, choose_board
+    POPULAR_TAGS = get_most_popular_tags(4)
+    choose_board = build_inline_keyboard(POPULAR_TAGS)
+    
     bot.send_message(
         message.chat.id,
         TAGS_PLS_MSG,

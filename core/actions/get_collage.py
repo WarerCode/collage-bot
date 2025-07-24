@@ -5,7 +5,7 @@ from core.database import get_images_by_tags
 import social_collage
 from PIL import Image
 
-LOGO = open(r"assets/logo.jfif", 'rb')
+LOGO = open(r"E:\портфолио студента\материалы\2024 - 2025\events\summer\collage bot\core\assets\logo.jfif", 'rb')
 
 def get_collage_by_tags(hashtags: list[str]):
     """
@@ -24,7 +24,7 @@ def get_collage_by_tags(hashtags: list[str]):
         ok = False
 
     try:
-        imgs = [Image.open(r"images/"+id+".jpg") for id in file_ids]
+        imgs = [Image.open(r"E:/портфолио студента/материалы/2024 - 2025/events/summer/collage bot/core/images/"+id+".jpg") for id in file_ids]
         collage = social_collage.collage_4_2(
         imgs,
         bgcolor=(255, 255, 255),
