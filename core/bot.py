@@ -4,6 +4,7 @@ import telebot
 from telebot import types
 from core.actions.load_image import check_load_image_rules, extract_hashtags, bind_buffer_data_with_tags, save_to_buffer
 from core.actions.get_collage import get_collage_by_tags, build_inline_keyboard
+from core.analytics.logger import LOGGER
 from core.common import *   # bot
 from database import *      # init popular tags
 
@@ -35,6 +36,9 @@ choose_board = build_inline_keyboard(POPULAR_TAGS)
 init_db()
 
 
+LOGGER.info("INITIALIZE FINISHED")
+
+
 @bot.message_handler(commands=[START])
 def welcome(message) -> None:
     """
@@ -48,6 +52,7 @@ def welcome(message) -> None:
                      HELLO_MSG, # common.py::
                      reply_markup=markup,
                      parse_mode='html')
+    LOGGER.info(f"started new dialog chat: {message.chat.id}")
 
 
 @bot.message_handler(func=lambda m: m.text not in COMMANDS)
@@ -112,12 +117,12 @@ def callback_load_image(message):
             new_file.write(downloaded_file)
 
         save_to_buffer(message.from_user.id, file_id)
-        print(f"callback_load_image::success from user {message.chat.id}")
+        LOGGER.info(f"callback_load_image::success from user {message.chat.id}")
         bot.reply_to(message, TAGS_PLS_MSG, parse_mode='html')
         bot.register_next_step_handler(message, callback_load_image_tags)
 
     except Exception as e:
-        print(f"callback_load_image:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
+        LOGGER.error(f"callback_load_image:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
         bot.reply_to(message, f"{e}\n",
                      parse_mode='html')
         bot.send_message(message.chat.id,
@@ -151,9 +156,10 @@ def callback_load_image_tags(message):
 
         increment_tag_popularity(hashtags)
         bot.reply_to(message, SUCCESS_MSG, parse_mode='html')
+        LOGGER.info(f"callback_load_image_tags:: image saved successfully; chat: {message.chat.id}")
 
     except Exception as e:
-        print(f"callback_load_image_tags:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
+        LOGGER.error(f"callback_load_image_tags:: chat: {message.chat.id}; \nError: {e}")
         bot.reply_to(message, f"{e}\n",
                      parse_mode='html')
         bot.send_message(message.chat.id,
@@ -203,9 +209,10 @@ def callback_make_collage(message):
 
         increment_tag_popularity(hashtags)
         bot.send_photo(message.chat.id, collage)
+        LOGGER.debug(f"callback_make_collage:: collage returned to chat: {message.chat.id}")
 
     except Exception as e:
-        print(f"callback_make_collage:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
+        LOGGER.error(f"callback_make_collage:: chat: {message.chat.id}; \nError: {e}")
         bot.reply_to(message, f"{e}\n",
                      parse_mode='html')
         bot.send_message(message.chat.id,
@@ -234,7 +241,7 @@ def inline_buttons_handler(call):
         bot.send_photo(call.message.chat.id, collage)
 
     except Exception as e:
-        print(f"inline_buttons_handler:: chat: {call.message.chat.id}; Error: {e}")
+        LOGGER.error(f"inline_buttons_handler:: chat: {call.message.chat.id}; Error: {e}")
         bot.reply_to(call.message, f"{e}\n",
                      parse_mode='html')
         bot.send_message(call.message.chat.id,
@@ -249,8 +256,8 @@ if __name__ == "__main__":
     try:
         bot.polling(none_stop=True)
     except ConnectionError as e:
-        print('Network error: ', e)
+        LOGGER.debug('Network error: ', e)
     except Exception as r:
-        print("Unexpected error: ", r)
+        LOGGER.debug("Unexpected error: ", r)
     finally:
-        print("running finished")
+        LOGGER.debug("running finished")

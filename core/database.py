@@ -2,6 +2,8 @@ import sqlite3
 from dotenv import load_dotenv
 import os
 
+from core.analytics.logger import LOGGER
+
 load_dotenv(r'E:\портфолио студента\материалы\2024 - 2025\events\summer\collage bot\config.env')
 DB_NAME = os.getenv('DB_NAME')
 
@@ -98,19 +100,19 @@ def save_to_database(user_id: int, file_id: str, tag_names: list[str]):
             )
         
         conn.commit()
-        print("Успех")
+        LOGGER.debug("saving was finished successfully")
         return True
 
     except Exception as e:
         conn.rollback()
-        print(f"Ошибка при сохранении в БД: {e}")
+        LOGGER.error(f"database.save_to_database:: failed to save: {e}")
         return False
 
     finally:
         conn.close()
 
 # Получение списка айди изображений по списку тегов
-def get_images_by_tags(tag_names: list[str]) -> list[tuple]:
+def get_images_by_tags(tag_names: list[str]) -> list[str]:
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
@@ -128,7 +130,7 @@ def get_images_by_tags(tag_names: list[str]) -> list[tuple]:
         return [row[0] for row in result]
 
     except Exception as e:
-        print(f"Ошибка при поиске изображений: {e}")
+        LOGGER.error(f"database.save_to_database:: failed to find file_ids: {e}")
         return []
 
     finally:
@@ -148,7 +150,7 @@ def increment_tag_popularity(tag_names: list[str]):
         return True
 
     except Exception as e:
-        print(f"Ошибка при обновлении популярности тегов: {e}")
+        LOGGER.error(f"database.save_to_database:: failed to update tag popularity: {e}")
         conn.rollback()
         return False
 
@@ -171,7 +173,7 @@ def get_most_popular_tags(n: int=4):
         return [row[0] for row in result]
 
     except Exception as e:
-        print(f"Ошибка при получении {n} наиболее популярных тегов: {e}")
+        LOGGER.error(f"database.save_to_database:: failed to get {n} most popular tags : {e}")
         conn.rollback()
         return []
 
