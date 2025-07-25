@@ -20,6 +20,7 @@ def init_db():
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS user_images (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        group_id INTEGER,
         user_id INTEGER NOT NULL,
         file_id TEXT UNIQUE
     )
@@ -33,16 +34,24 @@ def init_db():
         CONSTRAINT tag_id_fk FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
     )
     """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS image_group_tags (
+        image_group_id BIGINT NOT NULL,
+        tag_id BIGINT NOT NULL,
+        PRIMARY KEY (image_group_id, tag_id),
+        CONSTRAINT tag_id_fk FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+    )
+    """)
     conn.commit()
     conn.close()
 
 # Сохранение информации о изображении
-def save_image_to_database(user_id: int, file_id: str):
+def save_image_to_database(user_id: int, file_id: str, group_id: int=None):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO user_images (user_id, file_id) VALUES (?, ?)",
-        (user_id, file_id)
+        "INSERT INTO user_images (user_id, group_id, file_id) VALUES (?, ?, ?)",
+        (user_id, group_id, file_id)
     )
     conn.commit()
     conn.close()
@@ -65,6 +74,17 @@ def save_image_tag_to_database(image_id: int, tag_id: int):
     cursor.execute(
         "INSERT INTO image_tags (image_id, tag_id) VALUES (?, ?)",
         (image_id, tag_id)
+    )
+    conn.commit()
+    conn.close()
+
+# Сохранение информации о связи тега и группы изображений
+def save_image_tag_to_database(image_group_id: int, tag_id: int):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO image_group_tags (image_group_id, tag_id) VALUES (?, ?)",
+        (image_group_id, tag_id)
     )
     conn.commit()
     conn.close()
@@ -110,22 +130,83 @@ def save_to_database(user_id: int, file_id: str, tag_names: list[str]):
     finally:
         conn.close()
 
+# Сохранение полной информации о изображении и связных с ним тегов
+# (Использовать в load_image)
+def bulk_save_to_database(user_id: int, file_ids: list[str], image_group_id: int, tag_names: list[str]):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    
+    try:
+        for file_id in file_ids:
+            cursor.execute(
+                "INSERT OR IGNORE INTO user_images (user_id, group_id, file_id) VALUES (?, ?, ?)",
+                (user_id, image_group_id, file_id)
+            )
+            
+        for tag_name in tag_names:
+            cursor.execute(
+                "INSERT OR IGNORE INTO tags (name) VALUES (?)",
+                (tag_name,)
+            )
+            
+            cursor.execute("SELECT id FROM tags WHERE name = ?", (tag_name,))
+            tag_id = cursor.fetchone()[0]
+            
+            cursor.execute(
+                "INSERT OR IGNORE INTO image_group_tags (image_group_id, tag_id) VALUES (?, ?)",
+                (image_group_id, tag_id)
+            )
+            
+            conn.commit()
+            print("Успех")
+            return True
+
+    except Exception as e:
+        conn.rollback()
+        print(f"Ошибка при сохранении в БД: {e}")
+        return False
+
+    finally:
+        conn.close()
+
 # Получение списка айди изображений по списку тегов
 def get_images_by_tags(tag_names: list[str]) -> list[tuple]:
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
     try:
+        result = []
         placeholders = ",".join(["?"] * len(tag_names))
         
+        # cursor.execute(f"""
+        #     SELECT DISTINCT user_images.file_id FROM user_images
+        #     JOIN image_tags ON user_images.id = image_tags.image_id
+        #     JOIN tags ON image_tags.tag_id = tags.id
+        #     WHERE tags.name IN ({placeholders})
+        # """, tag_names)
+
+        # result += cursor.fetchall()
+
+        # cursor.execute(f"""
+        #     SELECT DISTINCT user_images.file_id FROM user_images
+        #     JOIN image_tags ON user_images.id = image_tags.image_id
+        #     JOIN tags ON image_tags.tag_id = tags.id
+        #     WHERE tags.name IN ({placeholders})
+        # """, tag_names)
+
+        # result += cursor.fetchall()
+
         cursor.execute(f"""
             SELECT DISTINCT user_images.file_id FROM user_images
             JOIN image_tags ON user_images.id = image_tags.image_id
             JOIN tags ON image_tags.tag_id = tags.id
+            JOIN image_group_tags ON user_images.group_id = image_group_tags.image_group_id
+            JOIN tags ON image_group_tags.tag_id = tags.id
             WHERE tags.name IN ({placeholders})
         """, tag_names)
+
+        result += cursor.fetchall()
         
-        result = cursor.fetchall()
         return [row[0] for row in result]
 
     except Exception as e:
