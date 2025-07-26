@@ -49,7 +49,7 @@ LOAD_IMAGE_MANUAL_MSG = rf"""
 4. <b>Вид</b>: отправка файла в сжатом виде (не хочу марать ваши величественные длани🥰)
                 """
 
-UNEXPECTED_TEXT_MSG = r"""
+UNEXPECTED_MSG = r"""
 Ваше величество, ваши изречения слишком сложны для вашего покорного слуги, чтобы он что-то смог понять.😔
                             
 <b>Пожалуйста, используйте кнопки.</b>
@@ -84,7 +84,7 @@ r"""❌<b>Ошибка.</b>
 def user_mistake_msg() -> str:
     return random.choice(USER_MISTAKE_GETUP_MSGS)
 
-def is_valid_tags(hashtags: list[str]) -> (bool, list[str]):
+def is_valid_tags(hashtags: list[str]) -> tuple[bool, list[str]]:
     errors = []
     res = True
     if not hashtags:
@@ -92,16 +92,16 @@ def is_valid_tags(hashtags: list[str]) -> (bool, list[str]):
         res = False
 
     for tag in hashtags:
-        if not tag.startswith('#'):
-            errors.append(f"@topShizoid - invalid tag's {tag} start msg :: common.py")
-            res = False
+        # if not tag.startswith('#'):
+        #     errors.append(f"@topShizoid - invalid tag's {tag} start msg :: common.py")
+        #     res = False
 
         if len(tag) > MAX_TAG_LENGTH:
             errors.append(f"@topShizoid - too large tag {tag} msg :: common.py")
             res = False
 
-        if not re.fullmatch(r'#\w+', tag):
-            errors.append(f"@topShizoid - invalid tag's {tag} syntax msg :: common.py")
-            res = False
+        # if not re.fullmatch(r'#\w+', tag):
+        #     errors.append(f"@topShizoid - invalid tag's {tag} syntax msg :: common.py")
+        #     res = False
 
     return (res, errors)
