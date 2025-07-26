@@ -20,7 +20,7 @@ def check_load_image_rules(file_info) -> tuple[bool, list[str]]:
     return (res, errors)
 
 
-def load_image_save_to_database(user_id: str, file_id: str, hashtags: list[str]) -> tuple[bool, list[str]]:
+def load_image_save_to_database(user_id: int, file_id: str, hashtags: list[str]) -> tuple[bool, list[str]]:
     ok = save_to_database(user_id, file_id, hashtags)
 
     errors = []

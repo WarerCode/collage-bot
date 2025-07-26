@@ -13,16 +13,16 @@ class Direction:
     VERTICAL = "vertical"
 
 class Shape:
-    SQUARE = ((800, 800), Direction.HORIZONTAL)
-    WIDE = ((1000, 500), Direction.HORIZONTAL)
-    TALL = ((500, 1000), Direction.VERTICAL)
-    PHONE = ((900, 1600), Direction.VERTICAL)
-    PC = ((1600, 900), Direction.HORIZONTAL)
+    SQUARE  = ((800, 800),  Direction.HORIZONTAL)
+    WIDE    = ((1000, 500), Direction.HORIZONTAL)
+    TALL    = ((500, 1000), Direction.VERTICAL)
+    PHONE   = ((900, 1600), Direction.VERTICAL)
+    PC      = ((1600, 900), Direction.HORIZONTAL)
 
-load_dotenv('config.env')
+load_dotenv('./config.env')
 MEDIA_ROOT = os.getenv('MEDIA_ROOT')
 
-LOGO = open("core/assets/logo.jpg", 'rb')
+LOGO = open("./core/assets/logo.jpg", 'rb')
 CAPACITY_SEQUENCE = [2, 4, 9]
 MAX_SHEET_SIZE = (1024, 1024)
 ADD_SCALE = 1.1
@@ -85,7 +85,7 @@ def get_collage_by_tags(hashtags: list[str]):
         ok = False
 
     try:
-        img_paths = [f"{MEDIA_ROOT}/images/"+id+".jpg" for id in file_ids]
+        img_paths = [f"{MEDIA_ROOT}/images/"+id+".jpg" for id in file_ids][:9]
         collage = create_collage(img_paths)
 
     except Exception as e:

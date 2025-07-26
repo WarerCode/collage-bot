@@ -1,3 +1,4 @@
+import random
 import re
 import sqlite3
 from dotenv import load_dotenv
@@ -170,7 +171,7 @@ def bulk_save_to_database(user_id: int, file_ids: list[str], image_group_id: int
         conn.close()
 
 # Получение списка айди изображений по списку тегов
-def get_images_by_tags(tag_names: list[str]) -> list[tuple]:
+def get_images_by_tags(tag_names: list[str]) -> list[str]:
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
@@ -178,36 +179,38 @@ def get_images_by_tags(tag_names: list[str]) -> list[tuple]:
         result = []
         placeholders = ",".join(["?"] * len(tag_names))
         
-        # cursor.execute(f"""
-        #     SELECT DISTINCT user_images.file_id FROM user_images
-        #     JOIN image_tags ON user_images.id = image_tags.image_id
-        #     JOIN tags ON image_tags.tag_id = tags.id
-        #     WHERE tags.name IN ({placeholders})
-        # """, tag_names)
+        cursor.execute(f"""
+            SELECT DISTINCT user_images.file_id FROM user_images
+            JOIN image_tags ON user_images.id = image_tags.image_id
+            JOIN tags ON image_tags.tag_id = tags.id
+            WHERE tags.name IN ({placeholders})
+        """, tag_names)
 
-        # result += cursor.fetchall()
-
-        # cursor.execute(f"""
-        #     SELECT DISTINCT user_images.file_id FROM user_images
-        #     JOIN image_tags ON user_images.id = image_tags.image_id
-        #     JOIN tags ON image_tags.tag_id = tags.id
-        #     WHERE tags.name IN ({placeholders})
-        # """, tag_names)
-
-        # result += cursor.fetchall()
+        result += cursor.fetchall()
 
         cursor.execute(f"""
             SELECT DISTINCT user_images.file_id FROM user_images
             JOIN image_tags ON user_images.id = image_tags.image_id
             JOIN tags ON image_tags.tag_id = tags.id
-            JOIN image_group_tags ON user_images.group_id = image_group_tags.image_group_id
-            JOIN tags ON image_group_tags.tag_id = tags.id
             WHERE tags.name IN ({placeholders})
         """, tag_names)
 
         result += cursor.fetchall()
-        
-        return [row[0] for row in result]
+
+        # cursor.execute(f"""
+        #    SELECT DISTINCT user_images.file_id FROM user_images
+        #    JOIN image_tags ON user_images.id = image_tags.image_id
+        #    JOIN tags ON image_tags.tag_id = tags.id
+        #    JOIN image_group_tags ON user_images.group_id = image_group_tags.image_group_id
+        #    JOIN tags ON image_group_tags.tag_id = tags.id
+        #    WHERE tags.name IN ({placeholders})
+        # """, tag_names)
+
+        result += cursor.fetchall()
+
+        file_ids = [row[0] for row in result]
+        random.shuffle(file_ids)
+        return file_ids
 
     except Exception as e:
         print(f"Ошибка при поиске изображений: {e}")

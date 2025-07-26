@@ -4,10 +4,10 @@ import telebot
 from telebot import types
 from actions.load_image import check_load_image_rules, extract_hashtags, load_image_save_to_database
 from actions.get_collage import get_close_tags_by_prompt, get_collage_by_tags, build_inline_keyboard
-from common import *   # bot
+from common import *        # bot
 from database import *      # init popular tags
 
-load_dotenv('config.env')
+load_dotenv('./config.env')
 BOT_API_KEY = os.getenv('BOT_API_KEY')
 MEDIA_ROOT = os.getenv('MEDIA_ROOT')
 
@@ -34,8 +34,6 @@ POPULAR_TAGS = get_most_popular_tags(4)
 choose_board = build_inline_keyboard(POPULAR_TAGS)
 
 
-
-
 @bot.message_handler(commands=[START])
 def welcome(message) -> None:
     """
@@ -59,12 +57,10 @@ def non_request_text_handler(message):
                      parse_mode='html')
 
 
-@bot.message_handler(content_types=['photo'])
-def non_request_photo_handler(message):
-    bot.send_message(message.chat.id,
-                     UNEXPECTED_MSG,  # common.py::
-                     reply_markup=markup,
-                     parse_mode='html')
+#@bot.message_handler(content_types=['photo'])
+#def non_request_photo_handler(message):
+#    bot.register_next_step_handler(message,
+#                                   callback_load_image)
 
 
 @bot.message_handler(content_types=['document'])
@@ -117,7 +113,9 @@ def callback_load_image(message):
         bot.register_next_step_handler(
             message, 
             callback_load_image_tags, 
-            kwargs={"user_id": message.from_user.id, "file_id": file_id}
+            kwargs={"user_id": message.from_user.id,
+                    "file_id": file_id,
+                    "media_group_id": message.media_group_id}
         )
 
     except Exception as e:
@@ -150,8 +148,12 @@ def callback_load_image_tags(message, kwargs):
         
         user_id = kwargs.get("user_id")
         file_id = kwargs.get("file_id")
+        media_group_id = kwargs.get("media_group_id")
 
         ok, errors = load_image_save_to_database(user_id, file_id, hashtags)
+        if not media_group_id is None:
+            # album message branch
+            ok = bulk_save_to_database(user_id, [file_id], media_group_id, hashtags)
 
         if not ok:
             raise RuntimeError("\n\n".join(errors))
