@@ -8,6 +8,7 @@ from actions.get_collage import get_close_tags_by_prompt, get_collage_by_tags, b
 from common import *        # bot
 from database import *      # init popular tags
 from collections import defaultdict
+from logs.logger import logger
 
 load_dotenv('./config.env')
 BOT_API_KEY = os.getenv('BOT_API_KEY')
@@ -27,6 +28,7 @@ COMMANDS = [MAKE_COLLAGE, LOAD_IMAGE, START]
 album_timers = defaultdict(threading.Timer)
 album_lock = threading.Lock()
 AWAITING_FOR_LOAD_IMAGE = "Жду изображения для load_image"
+
 
 def restart_album_timer(media_group_id):
     """Перезапускает таймер для альбома"""
@@ -59,6 +61,9 @@ POPULAR_TAGS = get_most_popular_tags(4)
 choose_board = build_inline_keyboard(POPULAR_TAGS)
 
 
+logger.info("bot initialize finished")
+
+
 @bot.message_handler(commands=[START])
 def welcome(message) -> None:
     """
@@ -82,8 +87,6 @@ def non_request_text_handler(message):
                      parse_mode='html')
 
 
-
-
 @bot.message_handler(content_types=['photo'])
 def non_request_photo_handler(message):
     if STATES[AWAITING_FOR_LOAD_IMAGE]:
@@ -100,12 +103,10 @@ def non_request_photo_handler(message):
             else:
                 process_single_image(message)
 
-            print(f"callback_load_image::success from user {message.chat.id}")
-            
-
+            logger.info(f"bot.callback_load_image::success from user {message.chat.id}")
 
         except Exception as e:
-            print(f"callback_load_image:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
+            logger.error(f"bot.callback_load_image:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
             bot.reply_to(message, f"{e}\n",
                         parse_mode='html')
             bot.send_message(message.chat.id,
@@ -117,6 +118,7 @@ def non_request_photo_handler(message):
                      UNEXPECTED_MSG,  # common.py::
                      reply_markup=markup,
                      parse_mode='html')
+
 
 @bot.message_handler(content_types=['document'])
 def file_handler(message):
@@ -169,6 +171,7 @@ def process_bulk_images(messages):
             "media_group_id": message.media_group_id
         }
     )
+
 
 def process_single_image(message):
     photo = message.photo[-1]
@@ -231,7 +234,7 @@ def callback_load_image_tags(message, kwargs):
         bot.reply_to(message, SUCCESS_MSG, parse_mode='html')
 
     except Exception as e:
-        print(f"callback_load_image_tags:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
+        logger.error(f"bot.callback_load_image_tags:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
         bot.reply_to(message, f"{e}\n",
                      parse_mode='html')
         bot.send_message(message.chat.id,
@@ -283,7 +286,7 @@ def callback_make_collage(message):
         bot.send_photo(message.chat.id, collage)
 
     except Exception as e:
-        print(f"callback_make_collage:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
+        logger.error(f"bot.callback_make_collage:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
         bot.reply_to(message, f"{e}\n",
                      parse_mode='html')
         bot.send_message(message.chat.id,
@@ -312,7 +315,7 @@ def inline_buttons_handler(call):
         bot.send_photo(call.message.chat.id, collage)
 
     except Exception as e:
-        print(f"inline_buttons_handler:: chat: {call.message.chat.id}; Error: {e}")
+        logger.error(f"bot.inline_buttons_handler:: chat: {call.message.chat.id}; Error: {e}")
         bot.reply_to(call.message, f"{e}\n",
                      parse_mode='html')
         bot.send_message(call.message.chat.id,
@@ -327,8 +330,8 @@ if __name__ == "__main__":
     try:
         bot.polling(none_stop=True)
     except ConnectionError as e:
-        print('Network error: ', e)
+        logger.error('Network error: ', e)
     except Exception as r:
-        print("Unexpected error: ", r)
+        logger.error("Unexpected error: ", r)
     finally:
-        print("running finished")
+        logger.info("running finished")
