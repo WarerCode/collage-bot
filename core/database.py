@@ -190,8 +190,8 @@ def get_images_by_tags(tag_names: list[str]) -> list[str]:
 
         cursor.execute(f"""
             SELECT DISTINCT user_images.file_id FROM user_images
-            JOIN image_tags ON user_images.id = image_tags.image_id
-            JOIN tags ON image_tags.tag_id = tags.id
+            JOIN image_group_tags ON user_images.group_id = image_group_tags.image_group_id
+            JOIN tags ON image_group_tags.tag_id = tags.id
             WHERE tags.name IN ({placeholders})
         """, tag_names)
 
@@ -206,10 +206,9 @@ def get_images_by_tags(tag_names: list[str]) -> list[str]:
         #    WHERE tags.name IN ({placeholders})
         # """, tag_names)
 
-        result += cursor.fetchall()
+        # result += cursor.fetchall()
 
-        file_ids = [row[0] for row in result]
-        random.shuffle(file_ids)
+        file_ids = [row[0] for row in set(result)]
         return file_ids
 
     except Exception as e:

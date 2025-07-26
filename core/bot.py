@@ -1,4 +1,5 @@
-import os                       # for loading .env file, make dirs
+import os
+import threading
 from dotenv import load_dotenv  # for parsing .env file
 import telebot
 from telebot import types
@@ -6,6 +7,7 @@ from actions.load_image import check_load_image_rules, extract_hashtags, load_im
 from actions.get_collage import get_close_tags_by_prompt, get_collage_by_tags, build_inline_keyboard
 from common import *        # bot
 from database import *      # init popular tags
+from collections import defaultdict
 
 load_dotenv('./config.env')
 BOT_API_KEY = os.getenv('BOT_API_KEY')
@@ -20,6 +22,29 @@ MAKE_COLLAGE = "Составить коллаж"
 LOAD_IMAGE = "Загрузить изображение"
 START = "start"
 COMMANDS = [MAKE_COLLAGE, LOAD_IMAGE, START]
+
+# Timer for bulk load images
+album_timers = defaultdict(threading.Timer)
+album_lock = threading.Lock()
+AWAITING_FOR_LOAD_IMAGE = "Жду изображения для load_image"
+
+def restart_album_timer(media_group_id):
+    """Перезапускает таймер для альбома"""
+    # Останавливаем предыдущий таймер, если был
+    if media_group_id in album_timers:
+        album_timers[media_group_id].cancel()
+    
+    # Создаем новый таймер на 1 секунды
+    timer = threading.Timer(1.0, process_bulk_images, args=[cached_messages[media_group_id]])
+    album_timers[media_group_id] = timer
+    timer.start()
+    
+
+STATES = {
+    AWAITING_FOR_LOAD_IMAGE: False
+}
+
+cached_messages = defaultdict(list)
 
 get_collage_action = types.KeyboardButton(MAKE_COLLAGE)
 load_image_action = types.KeyboardButton(LOAD_IMAGE)
@@ -57,11 +82,41 @@ def non_request_text_handler(message):
                      parse_mode='html')
 
 
-#@bot.message_handler(content_types=['photo'])
-#def non_request_photo_handler(message):
-#    bot.register_next_step_handler(message,
-#                                   callback_load_image)
 
+
+@bot.message_handler(content_types=['photo'])
+def non_request_photo_handler(message):
+    if STATES[AWAITING_FOR_LOAD_IMAGE]:
+        try:
+            if message.content_type != 'photo':
+                raise ValueError("@topShizoid invalid content type msg :: common.py")
+
+            os.makedirs(f'{MEDIA_ROOT}/images', exist_ok=True)
+
+            if message.media_group_id:
+                with album_lock:
+                    restart_album_timer(message.media_group_id)
+                    cached_messages[message.media_group_id].append(message)
+            else:
+                process_single_image(message)
+
+            print(f"callback_load_image::success from user {message.chat.id}")
+            
+
+
+        except Exception as e:
+            print(f"callback_load_image:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
+            bot.reply_to(message, f"{e}\n",
+                        parse_mode='html')
+            bot.send_message(message.chat.id,
+                            user_mistake_msg(),
+                            parse_mode='html')
+            bot.clear_step_handler(message)  # unregister next handler, clear context
+    else:
+        bot.send_message(message.chat.id,
+                     UNEXPECTED_MSG,  # common.py::
+                     reply_markup=markup,
+                     parse_mode='html')
 
 @bot.message_handler(content_types=['document'])
 def file_handler(message):
@@ -79,20 +134,13 @@ def request_load_image(message):
         parse_mode='html'
     )
 
-    bot.register_next_step_handler(message, callback_load_image)
+    STATES[AWAITING_FOR_LOAD_IMAGE] = True
 
 
-def callback_load_image(message):
-    """
-    The image is read, validated (format, size, censorship),
-    and its info is saved to a buffer
-    :param message: photo from user
-    :return: None
-    """
-    try:
-        if message.content_type != 'photo':
-            raise ValueError("@topShizoid invalid content type msg :: common.py")
-
+def process_bulk_images(messages):
+    STATES[AWAITING_FOR_LOAD_IMAGE] = False
+    file_ids = []
+    for message in messages:
         photo = message.photo[-1]
         file_id = photo.file_id
         file_info = bot.get_file(file_id)
@@ -103,29 +151,49 @@ def callback_load_image(message):
 
         downloaded_file = bot.download_file(file_info.file_path)
 
-        os.makedirs(f'{MEDIA_ROOT}/images', exist_ok=True)
         file_path = f"{MEDIA_ROOT}/images/{file_id}.jpg"
         with open(file_path, 'wb') as new_file:
             new_file.write(downloaded_file)
+        
+        file_ids.append(file_id)
 
-        print(f"callback_load_image::success from user {message.chat.id}")
-        bot.reply_to(message, TAGS_PLS_MSG, parse_mode='html')
-        bot.register_next_step_handler(
-            message, 
-            callback_load_image_tags, 
-            kwargs={"user_id": message.from_user.id,
-                    "file_id": file_id,
-                    "media_group_id": message.media_group_id}
-        )
+    del cached_messages[message.media_group_id]
 
-    except Exception as e:
-        print(f"callback_load_image:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
-        bot.reply_to(message, f"{e}\n",
-                     parse_mode='html')
-        bot.send_message(message.chat.id,
-                         user_mistake_msg(),
-                         parse_mode='html')
-        bot.clear_step_handler(message)  # unregister next handler, clear context
+    bot.reply_to(message, TAGS_PLS_MSG, parse_mode='html')
+    bot.register_next_step_handler(
+        message, 
+        callback_load_image_tags, 
+        kwargs={
+            "user_id": message.from_user.id,
+            "file_ids": file_ids,
+            "media_group_id": message.media_group_id
+        }
+    )
+
+def process_single_image(message):
+    photo = message.photo[-1]
+    file_id = photo.file_id
+    file_info = bot.get_file(file_id)
+
+    ok, errors = check_load_image_rules(file_info)
+    if not ok:
+        raise RuntimeError("\n\n".join(errors))
+
+    downloaded_file = bot.download_file(file_info.file_path)
+
+    file_path = f"{MEDIA_ROOT}/images/{file_id}.jpg"
+    with open(file_path, 'wb') as new_file:
+        new_file.write(downloaded_file)
+
+    bot.reply_to(message, TAGS_PLS_MSG, parse_mode='html')
+    bot.register_next_step_handler(
+        message, 
+        callback_load_image_tags, 
+        kwargs={
+            "user_id": message.from_user.id,
+            "file_id": file_id
+        }
+    )
 
 
 def callback_load_image_tags(message, kwargs):
@@ -147,13 +215,15 @@ def callback_load_image_tags(message, kwargs):
             raise RuntimeError("\n\n".join(errors))
         
         user_id = kwargs.get("user_id")
-        file_id = kwargs.get("file_id")
         media_group_id = kwargs.get("media_group_id")
 
-        ok, errors = load_image_save_to_database(user_id, file_id, hashtags)
         if not media_group_id is None:
             # album message branch
-            ok = bulk_save_to_database(user_id, [file_id], media_group_id, hashtags)
+            file_ids = kwargs.get("file_ids")
+            ok = bulk_save_to_database(user_id, file_ids, media_group_id, hashtags)
+        else:
+            file_id = kwargs.get("file_id")
+            ok, errors = load_image_save_to_database(user_id, file_id, hashtags)
 
         if not ok:
             raise RuntimeError("\n\n".join(errors))

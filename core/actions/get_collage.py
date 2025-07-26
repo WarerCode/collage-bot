@@ -68,12 +68,8 @@ def get_collage_by_tags(hashtags: list[str]):
     ok = True
     errors = []
 
-    file_ids = get_images_by_tags(hashtags)
-
-    # calculate count of photos - DONE
-
-    # count = photo_count(len(file_ids))
-    # file_ids = file_ids[0:count]
+    file_ids = get_images_by_tags(hashtags)[:9]
+    random.shuffle(file_ids)
 
     # calculate grid
     # calculate basic size of field
@@ -105,7 +101,7 @@ def get_rows_cols(n: int, direction: str=Direction.HORIZONTAL):
         if k == 1:
             new_n = int(n**0.5)**2
             if new_n != 1:
-                get_sides(new_n)
+                return get_sides(new_n)
             else:
                 return (k, n)
         else:
