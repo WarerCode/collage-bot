@@ -34,25 +34,26 @@ CAPACITY_SEQUENCE = [2, 4, 9]
 MAX_SHEET_SIZE = (1024, 1024)
 ADD_SCALE = 1.1
 
-def build_inline_keyboard(hashtags: list[str]):
+def build_inline_keyboard(buttons: list[str]):
     board = []
     for i in range(MAX_INLINE_ROWS):
         line = []
         for j in range(MAX_INLINE_COLS):
             index = i * MAX_INLINE_COLS + j
-            if index >= len(hashtags):
+            if index >= len(buttons):
                 break
 
-            tag = hashtags[index]
-            button = types.InlineKeyboardButton(tag, callback_data=tag)
+            tag = buttons[index]
+            button = types.InlineKeyboardButton(tag.lower(), callback_data=tag)
             line.append(button)
         board.append(line)
 
     return types.InlineKeyboardMarkup(board)
 
 POPULAR_TAGS = get_most_popular_tags(4)
-choose_board = build_inline_keyboard(POPULAR_TAGS)
-
+choose_tag_board = build_inline_keyboard(POPULAR_TAGS)
+SHAPE_MODES = [name for name in vars(Shape) if not name.startswith("__")]
+choose_shape_board = build_inline_keyboard(SHAPE_MODES)
 
 def prompt_to_list(prompt: str):
     prompt = prompt.lower()

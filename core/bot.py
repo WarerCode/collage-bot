@@ -1,7 +1,7 @@
 import telebot
 from telebot import types
 from actions.load_image import check_load_image_rules, extract_hashtags, load_image_save_to_database
-from actions.get_collage import get_close_tags_by_prompt, get_collage_by_tags, build_inline_keyboard, POPULAR_TAGS, choose_board
+from actions.get_collage import get_close_tags_by_prompt, get_collage_by_tags, build_inline_keyboard, POPULAR_TAGS, choose_tag_board
 from common import *        # bot
 from database import *      # init popular tags
 from logs.logger import logger
