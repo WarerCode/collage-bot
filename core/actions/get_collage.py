@@ -1,3 +1,4 @@
+import random
 from io import BytesIO
 import re
 from telebot import types
@@ -6,11 +7,13 @@ from math import floor, sqrt
 from common import MAX_INLINE_ROWS, MAX_INLINE_COLS
 from database import *
 from difflib import SequenceMatcher
-import random
+from logs.logger import logger
+
 
 class Direction:
-    HORIZONTAL = "horizontal"
-    VERTICAL = "vertical"
+    HORIZONTAL  = "horizontal"
+    VERTICAL    = "vertical"
+
 
 class Shape:
     SQUARE  = ((800, 800),  Direction.HORIZONTAL)
@@ -19,13 +22,16 @@ class Shape:
     PHONE   = ((900, 1600), Direction.VERTICAL)
     PC      = ((1600, 900), Direction.HORIZONTAL)
 
+
 load_dotenv('./config.env')
 MEDIA_ROOT = os.getenv('MEDIA_ROOT')
+
 
 LOGO = open("./core/assets/logo.jpg", 'rb')
 CAPACITY_SEQUENCE = [2, 4, 9]
 MAX_SHEET_SIZE = (1024, 1024)
 ADD_SCALE = 1.1
+
 
 def prompt_to_list(prompt: str):
     prompt = prompt.lower()
@@ -35,6 +41,7 @@ def prompt_to_list(prompt: str):
     words = list(word for word in prompt.split() if word)
 
     return list(set(hashtags + words))
+
 
 # Получение тегов с такими же первыми буквами (список названий)
 def get_close_tags_by_prompt(prompt: str, threshold: float=0.6):
@@ -54,8 +61,9 @@ def get_close_tags_by_prompt(prompt: str, threshold: float=0.6):
         return tags
 
     except Exception as e:
-        print(f"Ошибка при получении похожих тегов: {e}")
+        logger.error(f"Ошибка при получении похожих тегов: {e}")
         return []
+
 
 def get_collage_by_tags(hashtags: list[str]):
     """
@@ -91,6 +99,7 @@ def get_collage_by_tags(hashtags: list[str]):
 
     return ok, errors, collage
 
+
 def get_rows_cols(n: int, direction: str=Direction.HORIZONTAL):
     def get_sides(n: int):
         k = int(n**0.5)
@@ -114,6 +123,7 @@ def get_rows_cols(n: int, direction: str=Direction.HORIZONTAL):
     else:
         return (high, low)
 
+
 def resize_crop_to_fill(img, target_size, add_scale_frequency: float=0.5):
     """Масштабирует для заполнения всей ячейки"""
     target_ratio = target_size[0] / target_size[1]
@@ -127,6 +137,7 @@ def resize_crop_to_fill(img, target_size, add_scale_frequency: float=0.5):
         img.thumbnail((target_size[1]*3, target_size[1]*k))
     
     return img
+
 
 def create_collage(image_paths: list, shape_info: tuple=Shape.PHONE):
     """

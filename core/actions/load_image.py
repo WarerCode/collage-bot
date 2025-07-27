@@ -3,6 +3,7 @@ import re
 from common import EXPECTED_FORMATS, MAX_FILE_SIZE
 from database import save_to_database
 
+
 def check_load_image_rules(file_info) -> tuple[bool, list[str]]:
     file_path = file_info.file_path
     format = os.path.splitext(file_path)[1].lower()

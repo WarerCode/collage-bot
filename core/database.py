@@ -3,9 +3,12 @@ import re
 import sqlite3
 from dotenv import load_dotenv
 import os
+from logs.logger import logger
+
 
 load_dotenv('config.env')
 DB_NAME = os.getenv('DB_NAME')
+
 
 # Инициализация БД
 def init_db():
@@ -45,6 +48,8 @@ def init_db():
     """)
     conn.commit()
     conn.close()
+
+    logger.debug(f"database: {DB_NAME} was initialized")
 
 # Сохранение информации о изображении
 def save_image_to_database(user_id: int, file_id: str, group_id: int=None):
@@ -120,12 +125,12 @@ def save_to_database(user_id: int, file_id: str, tag_names: list[str]):
             )
         
         conn.commit()
-        print("Успех")
+        logger.info("database.save_to_database:: success")
         return True
 
     except Exception as e:
         conn.rollback()
-        print(f"Ошибка при сохранении в БД: {e}")
+        logger.error(f"database.save_to_database:: saving im db was wrong: {e}")
         return False
 
     finally:
@@ -159,12 +164,12 @@ def bulk_save_to_database(user_id: int, file_ids: list[str], image_group_id: int
             )
             
             conn.commit()
-            print("Успех")
+            logger.info("database.bulk_save_to_database:: success")
             return True
 
     except Exception as e:
         conn.rollback()
-        print(f"Ошибка при сохранении в БД: {e}")
+        logger.error(f"database.bulk_save_to_database::failed to save in db: {e}")
         return False
 
     finally:
@@ -212,7 +217,7 @@ def get_images_by_tags(tag_names: list[str]) -> list[str]:
         return file_ids
 
     except Exception as e:
-        print(f"Ошибка при поиске изображений: {e}")
+        logger.error(f"database.get_images_by_tags::failed to find files id: {e}")
         return []
 
     finally:
@@ -232,7 +237,7 @@ def increment_tag_popularity(tag_names: list[str]):
         return True
 
     except Exception as e:
-        print(f"Ошибка при обновлении популярности тегов: {e}")
+        logger.error(f"database.increment_tag_popularity:: failed to update tags popularity: {e}")
         conn.rollback()
         return False
 
@@ -255,7 +260,7 @@ def get_most_popular_tags(n: int=4):
         return [row[0] for row in result]
 
     except Exception as e:
-        print(f"Ошибка при получении {n} наиболее популярных тегов: {e}")
+        logger.error(f"database.get_most_popular_tags::failed to choose {n} most popular tags: {e}")
         conn.rollback()
         return []
 
@@ -279,12 +284,9 @@ def get_start_tags(tags: list[str]):
         return [row[0] for row in result]
 
     except Exception as e:
-        print(f"Ошибка при получении тегов с такими же первыми буквами: {e}")
+        logger.error(f"database.get_start_tags:: failed to choose near meaning tags: {e}")
         conn.rollback()
         return []
 
     finally:
         conn.close()
-
-
-
