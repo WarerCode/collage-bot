@@ -89,7 +89,7 @@ def get_collage_by_tags(hashtags: list[str]):
         ok = False
 
     try:
-        img_paths = [f"{MEDIA_ROOT}/images/"+id+".jpg" for id in file_ids][:9]
+        img_paths = [f"{MEDIA_ROOT}/images/"+id+".jpg" for id in file_ids]
         collage = create_collage(img_paths)
 
     except Exception as e:
@@ -132,8 +132,20 @@ def resize_crop_to_fill(img, target_size, add_scale_frequency: float=0.5):
     k = ADD_SCALE if random.random() < add_scale_frequency else 1
     
     if target_ratio > img_ratio:
+        if img_ratio*ADD_SCALE < target_ratio:
+            left = 0
+            right = img.width
+            lower = int(img.height * ((1 - (img_ratio*ADD_SCALE) / target_ratio) / 2))
+            upper = img.height - lower
+            img = img.crop((left, lower, right, upper))
         img.thumbnail((target_size[0]*k, target_size[0]*3))
     else:
+        if img_ratio > target_ratio*ADD_SCALE:
+            left = int(img.width * ((1 - (target_ratio*ADD_SCALE) / img_ratio) / 2))
+            right = img.width - left
+            lower = 0
+            upper = img.height
+            img = img.crop((left, lower, right, upper))
         img.thumbnail((target_size[1]*3, target_size[1]*k))
     
     return img
@@ -171,8 +183,8 @@ def create_collage(image_paths: list, shape_info: tuple=Shape.PHONE):
         img = resize_crop_to_fill(img, (cell_width, cell_height))
         
         # Вычисляем позицию
-        x = (i % cols) * cell_width
-        y = (i // cols) * cell_height
+        x = (i % cols) * cell_width - (img.width - cell_width) // 2
+        y = (i // cols) * cell_height - (img.height - cell_height) // 2
         
         # Вставляем изображение
         collage.paste(img, (x, y))
@@ -204,12 +216,3 @@ def build_inline_keyboard(hashtags: list[str]):
         board.append(line)
 
     return types.InlineKeyboardMarkup(board)
-
-
-def photo_count(size: int):
-    res = size
-    for c in CAPACITY_SEQUENCE:
-        if size < c:
-            return res
-        res = c
-    return CAPACITY_SEQUENCE[-1]
