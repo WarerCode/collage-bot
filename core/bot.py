@@ -1,7 +1,8 @@
 import telebot
 from telebot import types
 from actions.load_image import check_load_image_rules, extract_hashtags, load_image_save_to_database
-from actions.get_collage import get_close_tags_by_prompt, get_collage_by_tags, build_inline_keyboard, POPULAR_TAGS, choose_tag_board
+from actions.get_collage import get_close_tags_by_prompt, get_collage_by_tags, build_lowed_inline_keyboard, Shape, \
+    build_context_inline_keyboard, SHAPE_MODES
 from common import *        # bot
 from database import *      # init popular tags
 from logs.logger import logger
@@ -197,7 +198,7 @@ def callback_load_image_tags(message, kwargs):
 def request_make_collage(message):
     global POPULAR_TAGS, choose_board
     POPULAR_TAGS = get_most_popular_tags(4)
-    choose_board = build_inline_keyboard(POPULAR_TAGS)
+    choose_board = build_lowed_inline_keyboard(POPULAR_TAGS)
 
     bot.send_message(
         message.chat.id,
@@ -227,13 +228,14 @@ def callback_make_collage(message):
         if not ok:
             raise RuntimeError("\n\n".join(errors))
 
-        ok, errors, collage = get_collage_by_tags(hashtags)
-
-        if not ok:
-            raise RuntimeError("\n\n".join(errors))
-
-        increment_tag_popularity(hashtags)
-        bot.send_photo(message.chat.id, collage)
+        tags_data = ','.join(hashtags)
+        buttons_map = {key:','.join([key,tags_data]) for key in list(SHAPE_MODES.keys())}
+        choose_shape_board = build_context_inline_keyboard(buttons_map)
+        bot.send_message(
+            message.chat.id,
+            "Выберите размер холста:",
+            reply_markup=choose_shape_board,
+        )
 
     except Exception as e:
         logger.error(f"bot.callback_make_collage:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
@@ -246,11 +248,11 @@ def callback_make_collage(message):
 
 
 @bot.callback_query_handler(func=lambda call: call.data in POPULAR_TAGS)
-def inline_buttons_handler(call):
+def inline_tags_buttons_handler(call):
     """
     This is just a wrapper encapsulating
     the call to the make_collage handler
-    :param message: text from user
+    :param call: choosen button from user
     :return: None
     """
     try:
@@ -258,16 +260,51 @@ def inline_buttons_handler(call):
         bot.answer_callback_query(call.id)
 
         hashtags = [call.data]
-        ok, errors, collage = get_collage_by_tags(hashtags)
+        tags_data = ','.join(hashtags)
+        buttons_map = {key: ','.join([key, tags_data]) for key in list(SHAPE_MODES.keys())}
+        choose_shape_board = build_context_inline_keyboard(buttons_map)
+        bot.send_message(
+            call.message.chat.id,
+            "Выберите размер холста:",
+            reply_markup=choose_shape_board,
+        )
+
+    except Exception as e:
+        logger.error(f"bot.inline_tags_buttons_handler:: chat: {call.message.chat.id}; Error: {e}")
+        bot.reply_to(call.message, f"{e}\n",
+                     parse_mode='html')
+        bot.send_message(call.message.chat.id,
+                         user_mistake_msg(),
+                         parse_mode='html')
+
+    bot.clear_step_handler(call.message) # unregister next handler, clear context
+
+
+@bot.callback_query_handler(func=lambda call: call.data.split(',')[0] in list(SHAPE_MODES.keys()))
+def inline_shapes_buttons_handler(call):
+    """
+    This is just a wrapper encapsulating
+    the call to the make_collage handler
+    :param call: choosen button from user
+    :return: None
+    """
+    try:
+        # answer the callback to stop the loading spin
+        bot.answer_callback_query(call.id)
+
+        data = call.data.split(',')
+        hashtags = data[1:]
+        shape    = data[0]
+        ok, errors, collage = get_collage_by_tags(hashtags, SHAPE_MODES[shape])
         if not ok:
             raise RuntimeError("\n\n".join(errors))
 
         bot.send_photo(call.message.chat.id, collage)
 
     except Exception as e:
-        logger.error(f"bot.inline_buttons_handler:: chat: {call.message.chat.id}; Error: {e}")
+        logger.error(f"bot.inline_shapes_buttons_handler:: chat: {call.message.chat.id}; Error: {e}")
         bot.reply_to(call.message, f"{e}\n",
-                     parse_mode='html')
+                    parse_mode='html')
         bot.send_message(call.message.chat.id,
                          user_mistake_msg(),
                          parse_mode='html')
