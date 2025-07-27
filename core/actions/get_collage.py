@@ -1,4 +1,6 @@
 import random
+import os
+from dotenv import load_dotenv  # for parsing .env file
 from io import BytesIO
 import re
 from telebot import types
@@ -31,6 +33,25 @@ LOGO = open("./core/assets/logo.jpg", 'rb')
 CAPACITY_SEQUENCE = [2, 4, 9]
 MAX_SHEET_SIZE = (1024, 1024)
 ADD_SCALE = 1.1
+
+def build_inline_keyboard(hashtags: list[str]):
+    board = []
+    for i in range(MAX_INLINE_ROWS):
+        line = []
+        for j in range(MAX_INLINE_COLS):
+            index = i * MAX_INLINE_COLS + j
+            if index >= len(hashtags):
+                break
+
+            tag = hashtags[index]
+            button = types.InlineKeyboardButton(tag, callback_data=tag)
+            line.append(button)
+        board.append(line)
+
+    return types.InlineKeyboardMarkup(board)
+
+POPULAR_TAGS = get_most_popular_tags(4)
+choose_board = build_inline_keyboard(POPULAR_TAGS)
 
 
 def prompt_to_list(prompt: str):
@@ -199,20 +220,3 @@ def create_collage(image_paths: list, shape_info: tuple=Shape.PHONE):
         img.close()
     
     return output
-
-
-def build_inline_keyboard(hashtags: list[str]):
-    board = []
-    for i in range(MAX_INLINE_ROWS):
-        line = []
-        for j in range(MAX_INLINE_COLS):
-            index = i * MAX_INLINE_COLS + j
-            if index >= len(hashtags):
-                break
-
-            tag = hashtags[index]
-            button = types.InlineKeyboardButton(tag, callback_data=tag)
-            line.append(button)
-        board.append(line)
-
-    return types.InlineKeyboardMarkup(board)

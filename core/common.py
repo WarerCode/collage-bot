@@ -1,11 +1,59 @@
 import random
 import re
+import telebot
+from telebot import types
+from collections import defaultdict
+import threading
+import os
+from dotenv import load_dotenv  # for parsing .env file
+
 
 MAX_FILE_SIZE = 2 * 1024 * 1024 # 2 MB
 EXPECTED_FORMATS = [".jpg", ".png", ".jpeg", ".webp"]
 MAX_TAG_LENGTH = 30
 MAX_INLINE_COLS = 3 # max count of columns in inline keyboard
 MAX_INLINE_ROWS = 2 # max count of rows in inline keyboard
+
+# once initialize keyboard as global scoped
+markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+MAKE_COLLAGE = "Составить коллаж"
+LOAD_IMAGE = "Загрузить изображение"
+START = "start"
+COMMANDS = [MAKE_COLLAGE, LOAD_IMAGE, START]
+
+get_collage_action = types.KeyboardButton(MAKE_COLLAGE)
+load_image_action = types.KeyboardButton(LOAD_IMAGE)
+
+markup.add(get_collage_action, load_image_action)
+
+# Timer for bulk load images
+album_timers = defaultdict(threading.Timer)
+album_lock = threading.Lock()
+AWAITING_FOR_LOAD_IMAGE = "Жду изображения для load_image"
+
+load_dotenv('./config.env')
+BOT_API_KEY = os.getenv('BOT_API_KEY')
+MEDIA_ROOT = os.getenv('MEDIA_ROOT')
+
+
+def restart_album_timer(media_group_id):
+    """Перезапускает таймер для альбома"""
+    # Останавливаем предыдущий таймер, если был
+    if media_group_id in album_timers:
+        album_timers[media_group_id].cancel()
+
+    # Создаем новый таймер на 1 секунды
+    timer = threading.Timer(1.0, process_bulk_images, args=[cached_messages[media_group_id]])
+    album_timers[media_group_id] = timer
+    timer.start()
+
+
+STATES = {
+    AWAITING_FOR_LOAD_IMAGE: False
+}
+
+cached_messages = defaultdict(list)
 
 HELLO_MSG = r"""                 
 <b><i>Да здравствует, ваше Величество!</i></b>                                                                                  
