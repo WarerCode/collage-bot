@@ -4,7 +4,7 @@ import re
 from telebot import types
 from PIL import Image
 from math import floor, sqrt
-from common import MAX_INLINE_ROWS, MAX_INLINE_COLS
+from common import *
 from database import *
 from difflib import SequenceMatcher
 from logs.logger import logger
@@ -61,7 +61,7 @@ def get_close_tags_by_prompt(prompt: str, threshold: float=0.6):
         return tags
 
     except Exception as e:
-        logger.error(f"Ошибка при получении похожих тегов: {e}")
+        logger.error(SAME_TAGS_ERROR_MSG + f"\n{e}")
         return []
 
 
@@ -85,7 +85,7 @@ def get_collage_by_tags(hashtags: list[str]):
     # build grid layout
 
     if not file_ids:
-        errors.append("@topShizoid - failed to get file ids for collage msg :: common.py")
+        errors.append(LOSED_FILE_ID_MSG)
         ok = False
 
     try:
@@ -93,7 +93,7 @@ def get_collage_by_tags(hashtags: list[str]):
         collage = create_collage(img_paths)
 
     except Exception as e:
-        errors.append(f"get_collage.get_collage_by_tags::troubles : {e}")
+        errors.append(UNDEFINED_FAIL_MSG + f"\n{e}")
         ok = False
         collage = LOGO
 
@@ -156,7 +156,7 @@ def create_collage(image_paths: list, shape_info: tuple=Shape.PHONE):
     Создает коллаж из списка изображений
     """
     if not image_paths:
-        raise ValueError("Нужен хотя бы один файл изображения")
+        raise ValueError(LOSED_FILE_ID_MSG)
     elif len(image_paths) == 1:
         return Image.open(image_paths[0])
     
