@@ -1,4 +1,6 @@
 import random
+import os
+from dotenv import load_dotenv  # for parsing .env file
 from io import BytesIO
 import re
 from telebot import types
@@ -31,6 +33,52 @@ LOGO = open("./core/assets/logo.jpg", 'rb')
 CAPACITY_SEQUENCE = [2, 4, 9]
 MAX_SHEET_SIZE = (1024, 1024)
 ADD_SCALE = 1.1
+
+def build_lowed_inline_keyboard(buttons: list[str]):
+    board = []
+    for i in range(MAX_INLINE_ROWS):
+        line = []
+        for j in range(MAX_INLINE_COLS):
+            index = i * MAX_INLINE_COLS + j
+            if index >= len(buttons):
+                break
+
+            tag = buttons[index]
+            button = types.InlineKeyboardButton(tag.lower(), callback_data=tag)
+            line.append(button)
+        board.append(line)
+
+    return types.InlineKeyboardMarkup(board)
+
+POPULAR_TAGS = get_most_popular_tags(4)
+choose_tag_board = build_lowed_inline_keyboard(POPULAR_TAGS)
+
+def build_context_inline_keyboard(context: dict):
+    names = list(context.keys())
+    values = list(context.values())
+    board = []
+    for i in range(MAX_INLINE_ROWS):
+        line = []
+        for j in range(MAX_INLINE_COLS):
+            index = i * MAX_INLINE_COLS + j
+            if index >= len(names):
+                break
+
+            tag = names[index]
+            value = values[index]
+            button = types.InlineKeyboardButton(tag, callback_data=value)
+            line.append(button)
+        board.append(line)
+
+    return types.InlineKeyboardMarkup(board)
+
+SHAPE_MODES = {
+    "1:1"   : Shape.SQUARE,
+    "2:1"   : Shape.WIDE,
+    "1:2"   : Shape.TALL,
+    "16:9"  : Shape.PHONE,
+    "9:16"  : Shape.PC
+}
 
 
 def prompt_to_list(prompt: str):
@@ -65,7 +113,7 @@ def get_close_tags_by_prompt(prompt: str, threshold: float=0.6):
         return []
 
 
-def get_collage_by_tags(hashtags: list[str]):
+def get_collage_by_tags(hashtags: list[str], shape_info: tuple=Shape.PHONE):
     """
     The core of get collage feature
     here building a collage by Pillow
@@ -79,18 +127,13 @@ def get_collage_by_tags(hashtags: list[str]):
     file_ids = get_images_by_tags(hashtags)[:9]
     random.shuffle(file_ids)
 
-    # calculate grid
-    # calculate basic size of field
-    # randomly increment size
-    # build grid layout
-
     if not file_ids:
         errors.append("@topShizoid - failed to get file ids for collage msg :: common.py")
         ok = False
 
     try:
         img_paths = [f"{MEDIA_ROOT}/images/"+id+".jpg" for id in file_ids]
-        collage = create_collage(img_paths)
+        collage = create_collage(img_paths, shape_info)
 
     except Exception as e:
         errors.append(f"get_collage.get_collage_by_tags::troubles : {e}")
@@ -199,20 +242,3 @@ def create_collage(image_paths: list, shape_info: tuple=Shape.PHONE):
         img.close()
     
     return output
-
-
-def build_inline_keyboard(hashtags: list[str]):
-    board = []
-    for i in range(MAX_INLINE_ROWS):
-        line = []
-        for j in range(MAX_INLINE_COLS):
-            index = i * MAX_INLINE_COLS + j
-            if index >= len(hashtags):
-                break
-
-            tag = hashtags[index]
-            button = types.InlineKeyboardButton(tag, callback_data=tag)
-            line.append(button)
-        board.append(line)
-
-    return types.InlineKeyboardMarkup(board)

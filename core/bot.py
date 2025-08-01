@@ -1,65 +1,16 @@
-import os
-import threading
-from dotenv import load_dotenv  # for parsing .env file
 import telebot
 from telebot import types
 from actions.load_image import check_load_image_rules, extract_hashtags, load_image_save_to_database
-from actions.get_collage import get_close_tags_by_prompt, get_collage_by_tags, build_inline_keyboard
+from actions.get_collage import get_close_tags_by_prompt, get_collage_by_tags, build_lowed_inline_keyboard, Shape, \
+    build_context_inline_keyboard, SHAPE_MODES
 from common import *        # bot
 from database import *      # init popular tags
-from collections import defaultdict
 from logs.logger import logger
 
-load_dotenv('./config.env')
-BOT_API_KEY = os.getenv('BOT_API_KEY')
-MEDIA_ROOT = os.getenv('MEDIA_ROOT')
 
 bot = telebot.TeleBot(BOT_API_KEY)  # generates bot entity
 
-# once initialize keyboard as global scoped
-markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-
-MAKE_COLLAGE = "Составить коллаж"
-LOAD_IMAGE = "Загрузить изображение"
-START = "start"
-COMMANDS = [MAKE_COLLAGE, LOAD_IMAGE, START]
-
-# Timer for bulk load images
-album_timers = defaultdict(threading.Timer)
-album_lock = threading.Lock()
-AWAITING_FOR_LOAD_IMAGE = "Жду изображения для load_image"
-
-
-def restart_album_timer(media_group_id):
-    """Перезапускает таймер для альбома"""
-    # Останавливаем предыдущий таймер, если был
-    if media_group_id in album_timers:
-        album_timers[media_group_id].cancel()
-    
-    # Создаем новый таймер на 1 секунды
-    timer = threading.Timer(1.0, process_bulk_images, args=[cached_messages[media_group_id]])
-    album_timers[media_group_id] = timer
-    timer.start()
-    
-
-STATES = {
-    AWAITING_FOR_LOAD_IMAGE: False
-}
-
-cached_messages = defaultdict(list)
-
-get_collage_action = types.KeyboardButton(MAKE_COLLAGE)
-load_image_action = types.KeyboardButton(LOAD_IMAGE)
-
-markup.add(get_collage_action, load_image_action)
-# TODO: optionally we can add info_action, which send links to us repo and all that ...
-
-# initialize DB once (IF NOT EXIST)
 init_db()
-
-POPULAR_TAGS = get_most_popular_tags(4)
-choose_board = build_inline_keyboard(POPULAR_TAGS)
-
 
 logger.info("bot initialize finished")
 
@@ -247,7 +198,7 @@ def callback_load_image_tags(message, kwargs):
 def request_make_collage(message):
     global POPULAR_TAGS, choose_board
     POPULAR_TAGS = get_most_popular_tags(4)
-    choose_board = build_inline_keyboard(POPULAR_TAGS)
+    choose_board = build_lowed_inline_keyboard(POPULAR_TAGS)
 
     bot.send_message(
         message.chat.id,
@@ -277,13 +228,14 @@ def callback_make_collage(message):
         if not ok:
             raise RuntimeError("\n\n".join(errors))
 
-        ok, errors, collage = get_collage_by_tags(hashtags)
-
-        if not ok:
-            raise RuntimeError("\n\n".join(errors))
-
-        increment_tag_popularity(hashtags)
-        bot.send_photo(message.chat.id, collage)
+        tags_data = ','.join(hashtags)
+        buttons_map = {key:','.join([key,tags_data]) for key in list(SHAPE_MODES.keys())}
+        choose_shape_board = build_context_inline_keyboard(buttons_map)
+        bot.send_message(
+            message.chat.id,
+            "Выберите размер холста:",
+            reply_markup=choose_shape_board,
+        )
 
     except Exception as e:
         logger.error(f"bot.callback_make_collage:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
@@ -296,11 +248,11 @@ def callback_make_collage(message):
 
 
 @bot.callback_query_handler(func=lambda call: call.data in POPULAR_TAGS)
-def inline_buttons_handler(call):
+def inline_tags_buttons_handler(call):
     """
     This is just a wrapper encapsulating
     the call to the make_collage handler
-    :param message: text from user
+    :param call: choosen button from user
     :return: None
     """
     try:
@@ -308,16 +260,51 @@ def inline_buttons_handler(call):
         bot.answer_callback_query(call.id)
 
         hashtags = [call.data]
-        ok, errors, collage = get_collage_by_tags(hashtags)
+        tags_data = ','.join(hashtags)
+        buttons_map = {key: ','.join([key, tags_data]) for key in list(SHAPE_MODES.keys())}
+        choose_shape_board = build_context_inline_keyboard(buttons_map)
+        bot.send_message(
+            call.message.chat.id,
+            "Выберите размер холста:",
+            reply_markup=choose_shape_board,
+        )
+
+    except Exception as e:
+        logger.error(f"bot.inline_tags_buttons_handler:: chat: {call.message.chat.id}; Error: {e}")
+        bot.reply_to(call.message, f"{e}\n",
+                     parse_mode='html')
+        bot.send_message(call.message.chat.id,
+                         user_mistake_msg(),
+                         parse_mode='html')
+
+    bot.clear_step_handler(call.message) # unregister next handler, clear context
+
+
+@bot.callback_query_handler(func=lambda call: call.data.split(',')[0] in list(SHAPE_MODES.keys()))
+def inline_shapes_buttons_handler(call):
+    """
+    This is just a wrapper encapsulating
+    the call to the make_collage handler
+    :param call: choosen button from user
+    :return: None
+    """
+    try:
+        # answer the callback to stop the loading spin
+        bot.answer_callback_query(call.id)
+
+        data = call.data.split(',')
+        hashtags = data[1:]
+        shape    = data[0]
+        ok, errors, collage = get_collage_by_tags(hashtags, SHAPE_MODES[shape])
         if not ok:
             raise RuntimeError("\n\n".join(errors))
 
         bot.send_photo(call.message.chat.id, collage)
 
     except Exception as e:
-        logger.error(f"bot.inline_buttons_handler:: chat: {call.message.chat.id}; Error: {e}")
+        logger.error(f"bot.inline_shapes_buttons_handler:: chat: {call.message.chat.id}; Error: {e}")
         bot.reply_to(call.message, f"{e}\n",
-                     parse_mode='html')
+                    parse_mode='html')
         bot.send_message(call.message.chat.id,
                          user_mistake_msg(),
                          parse_mode='html')
