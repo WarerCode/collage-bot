@@ -15,6 +15,18 @@ init_db()
 logger.info("bot initialize finished")
 
 
+def restart_album_timer(media_group_id):
+    """Перезапускает таймер для альбома"""
+    # Останавливаем предыдущий таймер, если был
+    if media_group_id in album_timers:
+        album_timers[media_group_id].cancel()
+
+    # Создаем новый таймер на 1 секунды
+    timer = threading.Timer(1.0, process_bulk_images, args=[cached_messages[media_group_id]])
+    album_timers[media_group_id] = timer
+    timer.start()
+
+
 @bot.message_handler(commands=[START])
 def welcome(message) -> None:
     """

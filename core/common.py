@@ -37,18 +37,6 @@ BOT_API_KEY = os.getenv('BOT_API_KEY')
 MEDIA_ROOT = os.getenv('MEDIA_ROOT')
 
 
-def restart_album_timer(media_group_id):
-    """Перезапускает таймер для альбома"""
-    # Останавливаем предыдущий таймер, если был
-    if media_group_id in album_timers:
-        album_timers[media_group_id].cancel()
-
-    # Создаем новый таймер на 1 секунды
-    timer = threading.Timer(1.0, process_bulk_images, args=[cached_messages[media_group_id]])
-    album_timers[media_group_id] = timer
-    timer.start()
-
-
 STATES = {
     AWAITING_FOR_LOAD_IMAGE: False
 }
