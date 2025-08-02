@@ -55,7 +55,7 @@ def non_request_photo_handler(message):
     if STATES[AWAITING_FOR_LOAD_IMAGE]:
         try:
             if message.content_type != 'photo':
-                raise ValueError("@topShizoid invalid content type msg :: common.py")
+                raise ValueError(UNEXPECTED_MSG)
 
             os.makedirs(f'{MEDIA_ROOT}/images', exist_ok=True)
 
@@ -171,7 +171,7 @@ def callback_load_image_tags(message, kwargs):
     """
     try:
         if message.content_type != 'text':
-            raise ValueError("@topShizoid - invalid content type msg :: common.py")
+            raise ValueError(UNEXPECTED_MSG)
 
         prompt = message.text
         hashtags = extract_hashtags(prompt)
@@ -231,7 +231,7 @@ def callback_make_collage(message):
     """
     try:
         if message.content_type != 'text':
-            raise ValueError("@topShizoid - invalid content type msg :: common.py")
+            raise ValueError(UNEXPECTED_MSG)
 
         prompt = message.text
         hashtags = get_close_tags_by_prompt(prompt)

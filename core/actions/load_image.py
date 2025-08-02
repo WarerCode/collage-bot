@@ -1,6 +1,6 @@
 import os
 import re
-from common import EXPECTED_FORMATS, MAX_FILE_SIZE
+from common import *
 from database import save_to_database
 
 
@@ -12,10 +12,10 @@ def check_load_image_rules(file_info) -> tuple[bool, list[str]]:
     errors = []
     res = True
     if format not in EXPECTED_FORMATS:
-        errors.append("@topShizoid2010 - unexpected or undefined format checking failed msg :: common.py")
+        errors.append(UNEXPECTED_IMG_FORMAT_MSG)
         res = False
     if file_size >= MAX_FILE_SIZE:
-        errors.append("@topShizoid2010 - too large file msg :: common.py")
+        errors.append(LARGE_FILE_MSG)
         res = False
 
     return (res, errors)
@@ -26,7 +26,7 @@ def load_image_save_to_database(user_id: int, file_id: str, hashtags: list[str])
 
     errors = []
     if not ok:
-        errors.append("@topShizoid - failed to bind image data with tags")
+        errors.append(LOAD_IMG_FAIL_MSG)
     return (ok, errors)
 
 
