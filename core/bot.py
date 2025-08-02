@@ -85,10 +85,16 @@ def non_request_photo_handler(message):
 
 @bot.message_handler(content_types=['document'])
 def file_handler(message):
-    bot.send_message(message.chat.id,
-                     user_mistake_msg(),  # common.py::
-                     reply_markup=markup,
-                     parse_mode='html')
+    if STATES[AWAITING_FOR_LOAD_IMAGE]:
+        bot.send_message(message.chat.id,
+                        UNEXPECTED_FILE_FORMAT_MSG,  # common.py::
+                        reply_markup=markup,
+                        parse_mode='html')
+    else:
+        bot.send_message(message.chat.id,
+                        user_mistake_msg(),  # common.py::
+                        reply_markup=markup,
+                        parse_mode='html')
 
 
 @bot.message_handler(func=lambda m: m.text == LOAD_IMAGE)
@@ -234,8 +240,11 @@ def callback_make_collage(message):
             raise ValueError(UNEXPECTED_MSG)
 
         prompt = message.text
-        hashtags = get_close_tags_by_prompt(prompt)
-        ok, errors = is_valid_tags(hashtags)
+        if not prompt:
+            ok, errors = False, [EMPTY_TAG_ERROR_MSG]
+        else:
+            hashtags = get_close_tags_by_prompt(prompt)
+            ok, errors = is_valid_tags(hashtags)
 
         if not ok:
             raise RuntimeError("\n\n".join(errors))

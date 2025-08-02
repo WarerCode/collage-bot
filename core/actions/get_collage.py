@@ -31,7 +31,6 @@ MEDIA_ROOT = os.getenv('MEDIA_ROOT')
 
 LOGO = open("./core/assets/logo.jpg", 'rb')
 CAPACITY_SEQUENCE = [2, 4, 9]
-MAX_SHEET_SIZE = (1024, 1024)
 ADD_SCALE = 1.1
 
 def build_lowed_inline_keyboard(buttons: list[str]):
@@ -76,8 +75,8 @@ SHAPE_MODES = {
     "1:1"   : Shape.SQUARE,
     "2:1"   : Shape.WIDE,
     "1:2"   : Shape.TALL,
-    "16:9"  : Shape.PHONE,
-    "9:16"  : Shape.PC
+    "16:9"  : Shape.PC,
+    "9:16"  : Shape.PHONE
 }
 
 
@@ -181,7 +180,7 @@ def resize_crop_to_fill(img, target_size, add_scale_frequency: float=0.5):
             lower = int(img.height * ((1 - (img_ratio*ADD_SCALE) / target_ratio) / 2))
             upper = img.height - lower
             img = img.crop((left, lower, right, upper))
-        img.thumbnail((target_size[0]*k, target_size[0]*3))
+        img.thumbnail((target_size[0]*k, target_size[0]*4))
     else:
         if img_ratio > target_ratio*ADD_SCALE:
             left = int(img.width * ((1 - (target_ratio*ADD_SCALE) / img_ratio) / 2))
@@ -189,7 +188,7 @@ def resize_crop_to_fill(img, target_size, add_scale_frequency: float=0.5):
             lower = 0
             upper = img.height
             img = img.crop((left, lower, right, upper))
-        img.thumbnail((target_size[1]*3, target_size[1]*k))
+        img.thumbnail((target_size[1]*4, target_size[1]*k))
     
     return img
 
