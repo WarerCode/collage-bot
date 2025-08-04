@@ -13,6 +13,12 @@ EXPECTED_FORMATS = [".jpg", ".png", ".jpeg", ".webp"]
 MAX_TAG_LENGTH = 30
 MAX_INLINE_COLS = 3 # max count of columns in inline keyboard
 MAX_INLINE_ROWS = 2 # max count of rows in inline keyboard
+COLLAGE_IMG_COUNT = {
+    2: (1, 2),
+    4: (2, 2),
+    6: (2, 3),
+    9: (3, 3),
+}
 
 # once initialize keyboard as global scoped
 markup = types.ReplyKeyboardMarkup(resize_keyboard=True)

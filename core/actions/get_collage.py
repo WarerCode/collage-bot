@@ -142,23 +142,39 @@ def get_collage_by_tags(hashtags: list[str], shape_info: tuple=Shape.PHONE):
     return ok, errors, collage
 
 
-def get_rows_cols(n: int, direction: str=Direction.HORIZONTAL):
-    def get_sides(n: int):
-        k = int(n**0.5)
+# def get_rows_cols(n: int, direction: str=Direction.HORIZONTAL):
+#     def get_sides(n: int):
+#         k = int(n**0.5)
 
-        while n / k != int(n / k) and k > 1:
-            k -= 1
+#         while n / k != int(n / k) and k > 1:
+#             k -= 1
 
-        if k == 1:
-            new_n = int(n**0.5)**2
-            if new_n != 1:
-                return get_sides(new_n)
-            else:
-                return (k, n)
-        else:
-            return (k, n // k)
+#         if k == 1:
+#             new_n = int(n**0.5)**2
+#             if new_n != 1:
+#                 return get_sides(new_n)
+#             else:
+#                 return (k, n)
+#         else:
+#             return (k, n // k)
         
-    low, high = get_sides(n)
+#     low, high = get_sides(n)
+
+#     if direction == Direction.HORIZONTAL:
+#         return (low, high)
+#     else:
+#         return (high, low)
+    
+def get_rows_cols(n: int, direction: str=Direction.HORIZONTAL):
+    i = len(COLLAGE_IMG_COUNT)-1
+    keys = COLLAGE_IMG_COUNT.keys()
+    low, high = 1, 1
+    while i >= 0:
+        if n >= keys[i]:
+            low, high = COLLAGE_IMG_COUNT[keys[i]]
+            i = -1
+        else:
+            i -= 1
 
     if direction == Direction.HORIZONTAL:
         return (low, high)
@@ -166,29 +182,30 @@ def get_rows_cols(n: int, direction: str=Direction.HORIZONTAL):
         return (high, low)
 
 
-def resize_crop_to_fill(img, target_size, add_scale_frequency: float=0.5):
-    """Масштабирует для заполнения всей ячейки"""
-    target_ratio = target_size[0] / target_size[1]
-    img_ratio = img.width / img.height
-
-    k = ADD_SCALE if random.random() < add_scale_frequency else 1
+def resize_crop_to_fill(img, target_size, add_scale_frequency: float = 0.5):
+    # Определяем коэффициент увеличения
+    k = ADD_SCALE if random.random() < add_scale_frequency else 1.0
     
-    if target_ratio > img_ratio:
-        if img_ratio*ADD_SCALE < target_ratio:
-            left = 0
-            right = img.width
-            lower = int(img.height * ((1 - (img_ratio*ADD_SCALE) / target_ratio) / 2))
-            upper = img.height - lower
-            img = img.crop((left, lower, right, upper))
-        img.thumbnail((target_size[0]*k, target_size[0]*4))
-    else:
-        if img_ratio > target_ratio*ADD_SCALE:
-            left = int(img.width * ((1 - (target_ratio*ADD_SCALE) / img_ratio) / 2))
-            right = img.width - left
-            lower = 0
-            upper = img.height
-            img = img.crop((left, lower, right, upper))
-        img.thumbnail((target_size[1]*4, target_size[1]*k))
+    # Рассчитываем минимальный масштаб для полного заполнения
+    width_ratio = target_size[0] / img.width
+    height_ratio = target_size[1] / img.height
+    scale = max(width_ratio, height_ratio) * k  # Увеличиваем масштаб
+    
+    # Масштабируем изображение (увеличиваем маленькие изображения)
+    new_width = int(img.width * scale)
+    new_height = int(img.height * scale)
+    img = img.resize((new_width, new_height), Image.LANCZOS)
+    
+    # Координаты для обрезки (центрирование)
+    left = (img.width - target_size[0]) // 2
+    top = (img.height - target_size[1]) // 2
+    right = left + target_size[0]
+    bottom = top + target_size[1]
+    
+    # Обрезаем до целевого размера
+    img = img.crop((left, top, right, bottom))
+    if k > 1.0:
+        img = img.resize((int(img.width * k), int(img.height * k)), Image.LANCZOS)
     
     return img
 
