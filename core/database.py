@@ -163,9 +163,9 @@ def bulk_save_to_database(user_id: int, file_ids: list[str], image_group_id: int
                 (image_group_id, tag_id)
             )
             
-            conn.commit()
-            logger.info("database.bulk_save_to_database:: success")
-            return True
+        conn.commit()
+        logger.info("database.bulk_save_to_database:: success")
+        return True
 
     except Exception as e:
         conn.rollback()

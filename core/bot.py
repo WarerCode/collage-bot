@@ -101,8 +101,9 @@ def file_handler(message):
 def request_load_image(message):
     bot.send_message(
         message.chat.id,
-        LOAD_IMAGE_MANUAL_MSG,
-        parse_mode='html'
+        PRIVACY_POLICY_MSG,
+        parse_mode='html',
+        disable_web_page_preview=True
     )
 
     STATES[AWAITING_FOR_LOAD_IMAGE] = True
@@ -181,6 +182,7 @@ def callback_load_image_tags(message, kwargs):
 
         prompt = message.text
         hashtags = extract_hashtags(prompt)
+        print(hashtags)
         ok, errors = is_valid_tags(hashtags)
 
         if not ok:
