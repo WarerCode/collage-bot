@@ -11,6 +11,7 @@ from dotenv import load_dotenv  # for parsing .env file
 MAX_FILE_SIZE = 2 * 1024 * 1024 # 2 MB
 EXPECTED_FORMATS = [".jpg", ".png", ".jpeg", ".webp"]
 MAX_TAG_LENGTH = 30
+TAGS_PER_PAGE = 50
 MAX_INLINE_COLS = 3 # max count of columns in inline keyboard
 MAX_INLINE_ROWS = 2 # max count of rows in inline keyboard
 

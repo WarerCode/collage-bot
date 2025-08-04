@@ -6,6 +6,7 @@ from actions.get_collage import get_close_tags_by_prompt, get_collage_by_tags, b
 from common import *        # bot
 from database import *      # init popular tags
 from logs.logger import logger
+from collections import defaultdict
 
 
 bot = telebot.TeleBot(BOT_API_KEY)  # generates bot entity
@@ -14,6 +15,10 @@ init_db()
 
 logger.info("bot initialize finished")
 
+
+@bot.callback_query_handler(func=lambda call: call.data == "ignore")
+def ignore_callback(call):
+    bot.answer_callback_query(call.id)
 
 def restart_album_timer(media_group_id):
     """Перезапускает таймер для альбома"""
@@ -217,7 +222,7 @@ def callback_load_image_tags(message, kwargs):
 @bot.message_handler(func=lambda m: m.text == MAKE_COLLAGE)
 def request_make_collage(message):
     global POPULAR_TAGS, choose_board
-    POPULAR_TAGS = get_most_popular_tags(4)
+    POPULAR_TAGS = get_most_popular_tags(6)
     choose_board = build_lowed_inline_keyboard(POPULAR_TAGS)
 
     bot.send_message(
@@ -251,6 +256,7 @@ def callback_make_collage(message):
         if not ok:
             raise RuntimeError("\n\n".join(errors))
 
+        increment_tag_popularity(hashtags)
         tags_data = ','.join(hashtags)
         buttons_map = {key:','.join([key,tags_data]) for key in list(SHAPE_MODES.keys())}
         choose_shape_board = build_context_inline_keyboard(buttons_map)
@@ -270,6 +276,70 @@ def callback_make_collage(message):
         bot.clear_step_handler(message)  # unregister next handler, clear context
 
 
+
+
+def send_tags_list(chat_id, message_id=None, page=0):
+    try:
+        hashtags = get_all_tags()
+        total_pages = len(hashtags) // TAGS_PER_PAGE + 1
+        page_tags = hashtags[page*TAGS_PER_PAGE: (page+1)*TAGS_PER_PAGE]
+        message = ""
+        tags_alpha_dict = defaultdict(list)
+
+        for tag in page_tags:
+            first_w = tag[0]
+            tags_alpha_dict[first_w].append(tag)
+
+        for letter, tags in tags_alpha_dict.items():
+            message += letter.upper() + "\n" + " ".join(list(map(lambda x: "#"+x, tags))) + "\n"
+
+        message = message.strip()
+
+        markup = types.InlineKeyboardMarkup()
+
+        if len(hashtags) > TAGS_PER_PAGE:
+            row = []
+            if page > 0:
+                row.append(types.InlineKeyboardButton("⬅️ Назад", callback_data=f"tags_page_{page-1}"))
+            row.append(types.InlineKeyboardButton(f"{page+1}/{total_pages}", callback_data=f"ignore"))
+            if (page+1)*TAGS_PER_PAGE < len(hashtags):
+                row.append(types.InlineKeyboardButton("Вперёд ➡️", callback_data=f"tags_page_{page+1}"))
+            markup.row(*row)
+
+        if message_id:
+            bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text=message,
+                reply_markup=markup
+            )
+        else:
+            bot.send_message(
+                chat_id,
+                message,
+                reply_markup=markup
+            )
+    except Exception as e:
+        logger.error(f"bot.send_tags_list:: page: {page}; chat: {chat_id}; Error: {e}")
+        bot.reply_to(message, f"{e}\n",
+                     parse_mode='html')
+        bot.send_message(chat_id,
+                         user_mistake_msg(),
+                         parse_mode='html')
+        bot.clear_step_handler(message)  # unregister next handler, clear context
+        
+@bot.callback_query_handler(func=lambda call: call.data == "get_tags_list")
+def handle_tags_first_page(call):
+    send_tags_list(call.message.chat.id)
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("tags_page_"))
+def handle_tags_pagination(call):
+    page = int(call.data.split("_")[2])
+    send_tags_list(call.message.chat.id, call.message.message_id, page)
+    bot.answer_callback_query(call.id)
+
+
 @bot.callback_query_handler(func=lambda call: call.data in POPULAR_TAGS)
 def inline_tags_buttons_handler(call):
     """
@@ -283,6 +353,7 @@ def inline_tags_buttons_handler(call):
         bot.answer_callback_query(call.id)
 
         hashtags = [call.data]
+        increment_tag_popularity(hashtags)
         tags_data = ','.join(hashtags)
         buttons_map = {key: ','.join([key, tags_data]) for key in list(SHAPE_MODES.keys())}
         choose_shape_board = build_context_inline_keyboard(buttons_map)

@@ -267,6 +267,28 @@ def get_most_popular_tags(n: int=4):
     finally:
         conn.close()
 
+# Получение всех тегов (список названий)
+def get_all_tags():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT name FROM tags 
+            ORDER BY name ASC
+        """)
+        conn.commit()
+        result = cursor.fetchall()
+        return [row[0] for row in result]
+
+    except Exception as e:
+        logger.error(f"database.get_most_popular_tags::failed to choose {n} most popular tags: {e}")
+        conn.rollback()
+        return []
+
+    finally:
+        conn.close()
+
 # Получение тегов с такими же первыми буквами (список названий)
 def get_start_tags(tags: list[str]):
     conn = sqlite3.connect(DB_NAME)
