@@ -280,18 +280,18 @@ def callback_make_collage(message):
 
 def send_tags_list(chat_id, message_id=None, page=0):
     try:
-        hashtags = get_all_tags()
+        hashtags = get_tags_names_and_img_count()
         total_pages = len(hashtags) // TAGS_PER_PAGE + 1
         page_tags = hashtags[page*TAGS_PER_PAGE: (page+1)*TAGS_PER_PAGE]
         message = ""
         tags_alpha_dict = defaultdict(list)
 
-        for tag in page_tags:
-            first_w = tag[0]
-            tags_alpha_dict[first_w].append(tag)
+        for tag_info in page_tags:
+            first_w = tag_info[0][0]
+            tags_alpha_dict[first_w].append(tag_info)
 
-        for letter, tags in tags_alpha_dict.items():
-            message += letter.upper() + "\n" + " ".join(list(map(lambda x: "#"+x, tags))) + "\n"
+        for letter, tag_info_s in tags_alpha_dict.items():
+            message += letter.upper() + "\n" + ", ".join(list(map(lambda item: f"#{item[0]} ({item[1]})", tag_info_s))) + "\n"
 
         message = message.strip()
 
