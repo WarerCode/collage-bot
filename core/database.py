@@ -267,6 +267,43 @@ def get_most_popular_tags(n: int=4):
     finally:
         conn.close()
 
+# Получение всех тегов (список названий)
+def get_tags_names_and_img_count():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            SELECT 
+                t.name AS tag_name,
+                (
+                    SELECT COUNT(*) 
+                    FROM user_images ui
+                    JOIN image_group_tags igt ON ui.group_id = igt.image_group_id
+                    WHERE igt.tag_id = t.id
+                ) + 
+                (
+                    SELECT COUNT(DISTINCT it.image_id)
+                    FROM image_tags it
+                    WHERE it.tag_id = t.id
+                ) AS total_photos
+            FROM 
+                tags t
+            ORDER BY 
+                t.name ASC;
+        """)
+        conn.commit()
+        result = cursor.fetchall()
+        return result
+
+    except Exception as e:
+        logger.error(f"database.get_most_popular_tags::failed to choose {n} most popular tags: {e}")
+        conn.rollback()
+        return []
+
+    finally:
+        conn.close()
+
 # Получение тегов с такими же первыми буквами (список названий)
 def get_start_tags(tags: list[str]):
     conn = sqlite3.connect(DB_NAME)

@@ -47,6 +47,9 @@ def build_lowed_inline_keyboard(buttons: list[str]):
             line.append(button)
         board.append(line)
 
+    get_tags_list_button = types.InlineKeyboardButton("👁️ Посмотреть список тегов", callback_data="get_tags_list")
+    board.append([get_tags_list_button])
+
     return types.InlineKeyboardMarkup(board)
 
 POPULAR_TAGS = get_most_popular_tags(4)
