@@ -170,7 +170,7 @@ def get_collage_by_tags(hashtags: list[str], shape_info: tuple=Shape.PHONE):
     
 def get_rows_cols(n: int, direction: str=Direction.HORIZONTAL):
     i = len(COLLAGE_IMG_COUNT)-1
-    keys = COLLAGE_IMG_COUNT.keys()
+    keys = list(COLLAGE_IMG_COUNT.keys())
     low, high = 1, 1
     while i >= 0:
         if n >= keys[i]:
@@ -229,6 +229,7 @@ def create_collage(image_paths: list, shape_info: tuple=Shape.PHONE):
 
     # Рассчитываем размеры сетки
     rows, cols = get_rows_cols(len(images), shape_info[1])
+    images = images[:rows*cols]
     cell_width = output_size[0] // cols
     cell_height = output_size[1] // rows
     
