@@ -1,6 +1,4 @@
 import random
-import re
-import telebot
 from telebot import types
 from collections import defaultdict
 import threading
@@ -26,13 +24,15 @@ markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
 MAKE_COLLAGE = "Составить коллаж"
 LOAD_IMAGE = "Загрузить изображение"
+DELETE_DATA = "Удалить данные"
 START = "start"
-COMMANDS = [MAKE_COLLAGE, LOAD_IMAGE, START]
+COMMANDS = [MAKE_COLLAGE, LOAD_IMAGE, START, DELETE_DATA]
 
-get_collage_action = types.KeyboardButton(MAKE_COLLAGE)
-load_image_action = types.KeyboardButton(LOAD_IMAGE)
-
-markup.add(get_collage_action, load_image_action)
+markup.add(
+    types.KeyboardButton(MAKE_COLLAGE),
+    types.KeyboardButton(LOAD_IMAGE),
+    types.KeyboardButton(DELETE_DATA),
+)
 
 # Timer for bulk load images
 album_timers = defaultdict(threading.Timer)
@@ -253,12 +253,25 @@ GET_COLLAGE_MANUAL_MSG = r"""
 
 <i>Просто введите предложение, которое описывает ваш будущий коллаж (например: летний солнечный пляж).</i>
 
-<b><i>ИЛИ</b></i>
+<b><i>ИЛИ</i></b>
 
 <b>Выбрать из популярных тегов</b> - узнайте о чём толкует чернь🦻
 
 <i>Просто нажмите на доступные вам популярные теги.</i>
 
+"""
+
+DELETE_DATA_MSG = r"""
+⚔️ *Королевский Указ о Великом Уничтожении* ⚔️
+
+<em>Ваше величество, вы повелеваете предать огню все ваши изображения в нашей сокровищнице!</em>
+
+📜 <b>Последнее предупреждение:</b>
+• Все ваши фото будут <b>безвозвратно утеряны</b>
+
+<em>"Как меч, однажды вынутый из ножен, не может вернуться назад, так и удаленные изображения не смогут быть восстановлены"</em>
+
+🗡️ <b>Подтвердите ваш указ:</b>
 """
 
 def user_mistake_msg() -> str:

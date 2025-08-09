@@ -102,6 +102,41 @@ def file_handler(message):
                         parse_mode='html')
 
 
+@bot.message_handler(func=lambda m: m.text == DELETE_DATA)
+def request_delete_data(message):
+
+    markup = types.InlineKeyboardMarkup()
+    del_message_id = message.message_id
+
+    row = []
+    row.append(types.InlineKeyboardButton("Да, удалить", callback_data=f"delete_data_yes_{message.from_user.id}_{del_message_id}"))
+    row.append(types.InlineKeyboardButton("Нет, оставить", callback_data=f"delete_data_no_{message.from_user.id}_{del_message_id}"))
+
+    markup.row(*row)
+
+    bot.send_message(
+        message.chat.id,
+        DELETE_DATA_MSG,
+        parse_mode='html',
+        reply_markup=markup,
+    )
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("delete_data_"))
+def delete_data_callback(call):
+    answer, user_id, del_message_id = call.data.split("_")[2:]
+
+    if answer == "yes":
+        ok = delete_images_by_user_id(user_id)
+        if ok:
+            bot.answer_callback_query(call.id, text="Ваши данные были удалены")
+        else:
+            bot.send_message(call.id, text=user_mistake_msg())
+            bot.answer_callback_query(call.id)
+
+    bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
+
+
+
 @bot.message_handler(func=lambda m: m.text == LOAD_IMAGE)
 def request_load_image(message):
     bot.send_message(

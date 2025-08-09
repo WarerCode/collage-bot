@@ -304,6 +304,26 @@ def get_tags_names_and_img_count():
     finally:
         conn.close()
 
+def delete_images_by_user_id(user_id):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(f"""
+            DELETE FROM user_images 
+            WHERE user_id = ?;
+        """, (user_id,))
+        conn.commit()
+        return True
+
+    except Exception as e:
+        logger.error(f"database.delete_images_by_user_id:: failed to delete user images: {e}")
+        conn.rollback()
+        return False
+
+    finally:
+        conn.close()
+
 # Получение тегов с такими же первыми буквами (список названий)
 def get_start_tags(tags: list[str]):
     conn = sqlite3.connect(DB_NAME)
