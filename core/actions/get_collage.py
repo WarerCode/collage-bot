@@ -103,8 +103,6 @@ choose_tag_board = build_lowed_inline_keyboard(POPULAR_TAGS)
 def build_context_inline_keyboard(context: dict):
     names = list(context.keys())
     values = list(context.values())
-    print(names)
-    print(values)
     board = []
     for i in range(MAX_INLINE_ROWS):
         line = []
@@ -189,7 +187,7 @@ def get_collage_by_tags(hashtags: list[str], shape_info: tuple=Shape.PHONE, effe
         ok = False
 
     try:
-        img_paths = [f"{MEDIA_ROOT}/images/"+id+".jpg" for id in file_ids]
+        img_paths = [f"{IMAGES_DIR}/"+id+".jpg" for id in file_ids]
         collage_bytes = create_collage(img_paths, shape_info)
         collage_img = Image.open(collage_bytes)
         processed_img = effect_func(Effects, collage_img)  # Применяем эффект
