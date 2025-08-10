@@ -9,10 +9,15 @@ from logs.logger import logger
 load_dotenv('config.env')
 DB_NAME = os.getenv('DB_NAME')
 
+def connect_to_db():
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
 
 # Инициализация БД
 def init_db():
-    conn = sqlite3.connect(DB_NAME)
+    conn = connect_to_db()
     cursor = conn.cursor()
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS tags (
@@ -53,7 +58,7 @@ def init_db():
 
 # Сохранение информации о изображении
 def save_image_to_database(user_id: int, file_id: str, group_id: int=None):
-    conn = sqlite3.connect(DB_NAME)
+    conn = connect_to_db()
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO user_images (user_id, group_id, file_id) VALUES (?, ?, ?)",
@@ -64,7 +69,7 @@ def save_image_to_database(user_id: int, file_id: str, group_id: int=None):
 
 # Сохранение информации о теге
 def save_tag_to_database(name: str):
-    conn = sqlite3.connect(DB_NAME)
+    conn = connect_to_db()
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO tags (name) VALUES (?)",
@@ -75,7 +80,7 @@ def save_tag_to_database(name: str):
 
 # Сохранение информации о связи тега и изображения
 def save_image_tag_to_database(image_id: int, tag_id: int):
-    conn = sqlite3.connect(DB_NAME)
+    conn = connect_to_db()
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO image_tags (image_id, tag_id) VALUES (?, ?)",
@@ -86,7 +91,7 @@ def save_image_tag_to_database(image_id: int, tag_id: int):
 
 # Сохранение информации о связи тега и группы изображений
 def save_image_tag_to_database(image_group_id: int, tag_id: int):
-    conn = sqlite3.connect(DB_NAME)
+    conn = connect_to_db()
     cursor = conn.cursor()
     cursor.execute(
         "INSERT INTO image_group_tags (image_group_id, tag_id) VALUES (?, ?)",
@@ -98,7 +103,7 @@ def save_image_tag_to_database(image_group_id: int, tag_id: int):
 # Сохранение полной информации о изображении и связных с ним тегов
 # (Использовать в load_image)
 def save_to_database(user_id: int, file_id: str, tag_names: list[str]):
-    conn = sqlite3.connect(DB_NAME)
+    conn = connect_to_db()
     cursor = conn.cursor()
     
     try:
@@ -139,7 +144,7 @@ def save_to_database(user_id: int, file_id: str, tag_names: list[str]):
 # Сохранение полной информации о изображении и связных с ним тегов
 # (Использовать в load_image)
 def bulk_save_to_database(user_id: int, file_ids: list[str], image_group_id: int, tag_names: list[str]):
-    conn = sqlite3.connect(DB_NAME)
+    conn = connect_to_db()
     cursor = conn.cursor()
     
     try:
@@ -177,7 +182,7 @@ def bulk_save_to_database(user_id: int, file_ids: list[str], image_group_id: int
 
 # Получение списка айди изображений по списку тегов
 def get_images_by_tags(tag_names: list[str]) -> list[str]:
-    conn = sqlite3.connect(DB_NAME)
+    conn = connect_to_db()
     cursor = conn.cursor()
     
     try:
@@ -225,7 +230,7 @@ def get_images_by_tags(tag_names: list[str]) -> list[str]:
 
 # Увеличение популярности для списка тегов
 def increment_tag_popularity(tag_names: list[str]):
-    conn = sqlite3.connect(DB_NAME)
+    conn = connect_to_db()
     cursor = conn.cursor()
 
     try:
@@ -246,7 +251,7 @@ def increment_tag_popularity(tag_names: list[str]):
 
 # Получение N наиболее популярных тегов (список названий)
 def get_most_popular_tags(n: int=4):
-    conn = sqlite3.connect(DB_NAME)
+    conn = connect_to_db()
     cursor = conn.cursor()
 
     try:
@@ -269,7 +274,7 @@ def get_most_popular_tags(n: int=4):
 
 # Получение всех тегов (список названий)
 def get_tags_names_and_img_count():
-    conn = sqlite3.connect(DB_NAME)
+    conn = connect_to_db()
     cursor = conn.cursor()
 
     try:
@@ -304,9 +309,75 @@ def get_tags_names_and_img_count():
     finally:
         conn.close()
 
+def check_tag_images_exists():
+    conn = connect_to_db()
+    cursor = conn.cursor()
+
+    try:
+        # 1. Удаляем связи групп, для которых нет изображений
+        cursor.execute("""
+            DELETE FROM image_group_tags
+            WHERE image_group_id NOT IN (
+                SELECT DISTINCT group_id 
+                FROM user_images 
+                WHERE group_id IS NOT NULL
+            )
+        """)
+        deleted_groups = cursor.rowcount
+
+        # 2. Удаляем неиспользуемые теги
+        cursor.execute("""
+            DELETE FROM tags
+            WHERE id NOT IN (
+                SELECT DISTINCT tag_id FROM image_tags
+                UNION
+                SELECT DISTINCT tag_id FROM image_group_tags
+            )
+        """)
+        deleted_tags = cursor.rowcount
+        conn.commit()
+        logger.info(f"Deleted {deleted_groups} unused group links and {deleted_tags} unused tags")
+        return (deleted_groups, deleted_tags)
+
+    except Exception as e:
+        logger.error(f"database.delete_images_by_user_id:: failed to delete user images: {e}")
+        conn.rollback()
+        return False
+
+    finally:
+        conn.close()
+
+def delete_images_by_user_id(user_id):
+    conn = connect_to_db()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(f"""
+            SELECT file_id FROM user_images 
+            WHERE user_id = ?;
+        """, (user_id,))
+
+        image_ids = [item[0] for item in cursor.fetchall()]
+
+        cursor.execute(f"""
+            DELETE FROM user_images 
+            WHERE user_id = ?;
+        """, (user_id,))
+        conn.commit()
+        check_tag_images_exists()
+        return image_ids
+
+    except Exception as e:
+        logger.error(f"database.delete_images_by_user_id:: failed to delete user images: {e}")
+        conn.rollback()
+        return []
+
+    finally:
+        conn.close()
+
 # Получение тегов с такими же первыми буквами (список названий)
 def get_start_tags(tags: list[str]):
-    conn = sqlite3.connect(DB_NAME)
+    conn = connect_to_db()
     cursor = conn.cursor()
     first_symbols = tuple(set([tag[0] for tag in tags]))
     question_str = ",".join(['?' for _ in range(len(first_symbols))])

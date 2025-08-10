@@ -8,13 +8,41 @@ from database import *      # init popular tags
 from logs.logger import logger
 from collections import defaultdict
 
-
 bot = telebot.TeleBot(BOT_API_KEY)  # generates bot entity
 
 init_db()
 
 logger.info("bot initialize finished")
 
+def delete_images_from_media(file_ids: list[str]) -> bool:
+    """
+    Удаляет изображения из папки media по списку их file_id
+    
+    :param file_ids: Список идентификаторов файлов для удаления
+    :return: True если все файлы удалены успешно, False в случае ошибки
+    """
+    success = True
+    
+    if not os.path.exists(IMAGES_DIR):
+        logger.error(f"Папка {IMAGES_DIR} не существует")
+        return False
+
+    for file_id in file_ids:
+        try:
+            file_path = os.path.join(IMAGES_DIR, f"{file_id}.jpg")
+            
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                logger.debug(f"Файл {file_id} успешно удален из {IMAGES_DIR}")
+            else:
+                logger.warning(f"Файл {file_id} не найден в {IMAGES_DIR}")
+                success = False
+                
+        except Exception as e:
+            logger.error(f"Ошибка при удалении файла {file_id}: {e}")
+            success = False
+    
+    return success
 
 @bot.callback_query_handler(func=lambda call: call.data == "ignore")
 def ignore_callback(call):
@@ -46,6 +74,39 @@ def welcome(message) -> None:
                      reply_markup=markup,
                      parse_mode='html')
 
+@bot.message_handler(commands=[DELETE_DATA])
+def request_delete_data(message):
+
+    markup = types.InlineKeyboardMarkup()
+    del_message_id = message.message_id
+
+    row = []
+    row.append(types.InlineKeyboardButton("Да, удалить", callback_data=f"delete_data_yes_{message.from_user.id}_{del_message_id}"))
+    row.append(types.InlineKeyboardButton("Нет, оставить", callback_data=f"delete_data_no_{message.from_user.id}_{del_message_id}"))
+
+    markup.row(*row)
+
+    bot.send_message(
+        message.chat.id,
+        DELETE_DATA_MSG,
+        parse_mode='html',
+        reply_markup=markup,
+    )
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("delete_data_"))
+def delete_data_callback(call):
+    answer, user_id, del_message_id = call.data.split("_")[2:]
+
+    if answer == "yes":
+        image_ids = delete_images_by_user_id(user_id)
+        ok_media = delete_images_from_media(image_ids)
+        if ok_media:
+            bot.send_message(call.message.chat.id, text=f"{len(image_ids)} ваших фотографий были успешно удалены")
+        else:
+            bot.send_message(call.message.chat.id, text=user_mistake_msg())
+        bot.answer_callback_query(call.id)
+
+    bot.edit_message_reply_markup(call.message.chat.id, call.message.message_id, reply_markup=None)
 
 @bot.message_handler(func=lambda m: m.text not in COMMANDS)
 def non_request_text_handler(message):
@@ -62,7 +123,7 @@ def non_request_photo_handler(message):
             if message.content_type != 'photo':
                 raise ValueError(UNEXPECTED_MSG)
 
-            os.makedirs(f'{MEDIA_ROOT}/images', exist_ok=True)
+            os.makedirs(IMAGES_DIR, exist_ok=True)
 
             if message.media_group_id:
                 with album_lock:
@@ -102,6 +163,7 @@ def file_handler(message):
                         parse_mode='html')
 
 
+
 @bot.message_handler(func=lambda m: m.text == LOAD_IMAGE)
 def request_load_image(message):
     bot.send_message(
@@ -128,7 +190,7 @@ def process_bulk_images(messages):
 
         downloaded_file = bot.download_file(file_info.file_path)
 
-        file_path = f"{MEDIA_ROOT}/images/{file_id}.jpg"
+        file_path = os.path.join(IMAGES_DIR, f"{file_id}.jpg")
         with open(file_path, 'wb') as new_file:
             new_file.write(downloaded_file)
         
@@ -159,7 +221,7 @@ def process_single_image(message):
 
     downloaded_file = bot.download_file(file_info.file_path)
 
-    file_path = f"{MEDIA_ROOT}/images/{file_id}.jpg"
+    file_path = os.path.join(IMAGES_DIR, f"{file_id}.jpg")
     with open(file_path, 'wb') as new_file:
         new_file.write(downloaded_file)
 
@@ -187,7 +249,6 @@ def callback_load_image_tags(message, kwargs):
 
         prompt = message.text
         hashtags = extract_hashtags(prompt)
-        print(hashtags)
         ok, errors = is_valid_tags(hashtags)
 
         if not ok:
@@ -281,6 +342,13 @@ def callback_make_collage(message):
 def send_tags_list(chat_id, message_id=None, page=0):
     try:
         hashtags = get_tags_names_and_img_count()
+        if len(hashtags) == 0:
+            bot.send_message(
+                chat_id,
+                text=LOAD_FIRST_IMAGE_MSG,
+                parse_mode="html",
+            )
+            return
         total_pages = len(hashtags) // TAGS_PER_PAGE + 1
         page_tags = hashtags[page*TAGS_PER_PAGE: (page+1)*TAGS_PER_PAGE]
         message = ""

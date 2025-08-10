@@ -1,6 +1,4 @@
 import random
-import re
-import telebot
 from telebot import types
 from collections import defaultdict
 import threading
@@ -26,13 +24,14 @@ markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
 MAKE_COLLAGE = "Составить коллаж"
 LOAD_IMAGE = "Загрузить изображение"
+DELETE_DATA = "delete_my_data"
 START = "start"
-COMMANDS = [MAKE_COLLAGE, LOAD_IMAGE, START]
+COMMANDS = [MAKE_COLLAGE, LOAD_IMAGE, START, DELETE_DATA]
 
-get_collage_action = types.KeyboardButton(MAKE_COLLAGE)
-load_image_action = types.KeyboardButton(LOAD_IMAGE)
-
-markup.add(get_collage_action, load_image_action)
+markup.add(
+    types.KeyboardButton(MAKE_COLLAGE),
+    types.KeyboardButton(LOAD_IMAGE),
+)
 
 # Timer for bulk load images
 album_timers = defaultdict(threading.Timer)
@@ -42,6 +41,7 @@ AWAITING_FOR_LOAD_IMAGE = "Жду изображения для load_image"
 load_dotenv('./config.env')
 BOT_API_KEY = os.getenv('BOT_API_KEY')
 MEDIA_ROOT = os.getenv('MEDIA_ROOT')
+IMAGES_DIR = os.path.join(MEDIA_ROOT, "images")
 
 
 STATES = {
@@ -253,13 +253,43 @@ GET_COLLAGE_MANUAL_MSG = r"""
 
 <i>Просто введите предложение, которое описывает ваш будущий коллаж (например: летний солнечный пляж).</i>
 
-<b><i>ИЛИ</b></i>
+<b><i>ИЛИ</i></b>
 
 <b>Выбрать из популярных тегов</b> - узнайте о чём толкует чернь🦻
 
 <i>Просто нажмите на доступные вам популярные теги.</i>
 
 """
+
+DELETE_DATA_MSG = r"""
+⚔️ *Королевский Указ о Великом Уничтожении* ⚔️
+
+<em>Ваше величество, вы повелеваете предать огню все ваши изображения в нашей сокровищнице!</em>
+
+📜 <b>Последнее предупреждение:</b>
+• Все ваши фото будут <b>безвозвратно утеряны</b>
+
+<em>"Как меч, однажды вынутый из ножен, не может вернуться назад, так и удаленные изображения не смогут быть восстановлены"</em>
+
+🗡️ <b>Подтвердите ваш указ:</b>
+"""
+
+LOAD_FIRST_IMAGE_MSG = r"""
+🔮 *Таинственная Пустота в Волшебном Архиве* 🔮
+
+<em>О, Великий Искатель Сокровищ, наши древние фолианты тегов пустуют!</em>
+
+📖 <b>Ты стоишь на пороге великого:</b>
+• В хранилище ещё <b>нет ни единого тега</b>
+• Ты можешь стать <b>первопроходцем</b> этого царства
+
+<em>"Как первый луч солнца освещает нетронутые земли, так и твоё первое изображение откроет новую эру в наших архивах"</em>
+
+🖼️ <b>Повелеваю тебе:</b>
+Загрузи первое изображение и стань <b>основателем</b> этой коллекции!
+"""
+
+
 
 def user_mistake_msg() -> str:
     return random.choice(USER_MISTAKE_GETUP_MSGS)
