@@ -4,8 +4,7 @@ from dotenv import load_dotenv  # for parsing .env file
 from io import BytesIO
 import re
 from telebot import types
-from PIL import Image
-from math import floor, sqrt
+from PIL import Image, ImageFilter, ImageEnhance, ImageOps, ImageDraw
 from common import *
 from database import *
 from difflib import SequenceMatcher
@@ -24,10 +23,56 @@ class Shape:
     PHONE   = ((900, 1600), Direction.VERTICAL)
     PC      = ((1600, 900), Direction.HORIZONTAL)
 
+class Effects:
+    @staticmethod
+    def apply_nothing(cls, img):
+        return img
+    
+    @staticmethod
+    def apply_grayscale(cls, img):
+        gray_img = ImageOps.grayscale(img)
+        return gray_img
+    
+    @staticmethod
+    def apply_blur(cls, img, radius: int=2):
+        blurred = img.filter(ImageFilter.GaussianBlur(radius))
+        return blurred
+    
+    @staticmethod
+    def apply_contrast(cls, img, factor: float = 1.5):
+        enhancer = ImageEnhance.Contrast(img).enhance(factor)
+        return enhancer
+    
+    @staticmethod
+    def apply_glitch(cls, img, intensity: float = 0.1):
+        width, height = img.size
+        pixels = img.load()
+        
+        for _ in range(int(width * height * intensity)):
+            x, y = random.randint(0, width-1), random.randint(0, height-1)
+            pixels[x, y] = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+
+        return img
+
+    @staticmethod
+    def apply_vignette(cls, img, darkness: float = 0.8):
+        width, height = img.size
+        pixels = img.load()
+        half_width = width//2
+        half_height = height//2
+        max_radius = ((half_width**2 + half_height**2)**0.5)
+        for y in range(height):
+            for x in range(width):
+                dist = ((x - half_width)**2 + (y - half_height)**2)**0.5
+                intensity = 1 - max(0, dist / max_radius - 0.2) * darkness
+                pixels[x, y] = (int(pixels[x, y][0]*intensity), int(pixels[x, y][1]*intensity), int(pixels[x, y][2]*intensity))
+        
+        return img
 
 load_dotenv('./config.env')
 MEDIA_ROOT = os.getenv('MEDIA_ROOT')
 
+collage_settings = defaultdict(dict)
 
 LOGO = open("./core/assets/logo.jpg", 'rb')
 CAPACITY_SEQUENCE = [2, 4, 9]
@@ -58,6 +103,8 @@ choose_tag_board = build_lowed_inline_keyboard(POPULAR_TAGS)
 def build_context_inline_keyboard(context: dict):
     names = list(context.keys())
     values = list(context.values())
+    print(names)
+    print(values)
     board = []
     for i in range(MAX_INLINE_ROWS):
         line = []
@@ -80,6 +127,14 @@ SHAPE_MODES = {
     "1:2"   : Shape.TALL,
     "16:9"  : Shape.PC,
     "9:16"  : Shape.PHONE
+}
+EFFECT_MODES = {
+    "Оттенки серого": Effects.apply_grayscale,
+    "Размытие": Effects.apply_blur,
+    "Контрастность": Effects.apply_contrast,
+    "Глитч": Effects.apply_glitch,
+    "Виньетка": Effects.apply_vignette,
+    "❌": Effects.apply_nothing,
 }
 
 
@@ -115,7 +170,7 @@ def get_close_tags_by_prompt(prompt: str, threshold: float=0.6):
         return []
 
 
-def get_collage_by_tags(hashtags: list[str], shape_info: tuple=Shape.PHONE):
+def get_collage_by_tags(hashtags: list[str], shape_info: tuple=Shape.PHONE, effect_func=Effects.apply_nothing):
     """
     The core of get collage feature
     here building a collage by Pillow
@@ -135,38 +190,22 @@ def get_collage_by_tags(hashtags: list[str], shape_info: tuple=Shape.PHONE):
 
     try:
         img_paths = [f"{MEDIA_ROOT}/images/"+id+".jpg" for id in file_ids]
-        collage = create_collage(img_paths, shape_info)
+        collage_bytes = create_collage(img_paths, shape_info)
+        collage_img = Image.open(collage_bytes)
+        processed_img = effect_func(Effects, collage_img)  # Применяем эффект
+        
+        # Конвертируем обратно в BytesIO
+        output = BytesIO()
+        processed_img.save(output, format='JPEG')
+        output.seek(0)
 
     except Exception as e:
         errors.append(UNDEFINED_FAIL_MSG + f"\n{e}")
         ok = False
-        collage = LOGO
+        output = LOGO
 
-    return ok, errors, collage
+    return ok, errors, output
 
-
-# def get_rows_cols(n: int, direction: str=Direction.HORIZONTAL):
-#     def get_sides(n: int):
-#         k = int(n**0.5)
-
-#         while n / k != int(n / k) and k > 1:
-#             k -= 1
-
-#         if k == 1:
-#             new_n = int(n**0.5)**2
-#             if new_n != 1:
-#                 return get_sides(new_n)
-#             else:
-#                 return (k, n)
-#         else:
-#             return (k, n // k)
-        
-#     low, high = get_sides(n)
-
-#     if direction == Direction.HORIZONTAL:
-#         return (low, high)
-#     else:
-#         return (high, low)
     
 def get_rows_cols(n: int, direction: str=Direction.HORIZONTAL):
     i = len(COLLAGE_IMG_COUNT)-1

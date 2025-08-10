@@ -2,7 +2,7 @@ import telebot
 from telebot import types
 from actions.load_image import check_load_image_rules, extract_hashtags, load_image_save_to_database
 from actions.get_collage import get_close_tags_by_prompt, get_collage_by_tags, build_lowed_inline_keyboard, Shape, \
-    build_context_inline_keyboard, SHAPE_MODES
+    build_context_inline_keyboard, SHAPE_MODES, EFFECT_MODES, collage_settings
 from common import *        # bot
 from database import *      # init popular tags
 from logs.logger import logger
@@ -257,13 +257,12 @@ def callback_make_collage(message):
             raise RuntimeError("\n\n".join(errors))
 
         increment_tag_popularity(hashtags)
-        tags_data = ','.join(hashtags)
-        buttons_map = {key:','.join([key,tags_data]) for key in list(SHAPE_MODES.keys())}
-        choose_shape_board = build_context_inline_keyboard(buttons_map)
+        collage_settings[message.chat.id]["tags"] = hashtags
+        buttons_map = {key: key for key in list(SHAPE_MODES.keys())}
         bot.send_message(
             message.chat.id,
             "Выберите размер холста:",
-            reply_markup=choose_shape_board,
+            reply_markup=build_context_inline_keyboard(buttons_map),
         )
 
     except Exception as e:
@@ -374,7 +373,7 @@ def inline_tags_buttons_handler(call):
     bot.clear_step_handler(call.message) # unregister next handler, clear context
 
 
-@bot.callback_query_handler(func=lambda call: call.data.split(',')[0] in list(SHAPE_MODES.keys()))
+@bot.callback_query_handler(func=lambda call: call.data in list(SHAPE_MODES.keys()))
 def inline_shapes_buttons_handler(call):
     """
     This is just a wrapper encapsulating
@@ -383,20 +382,51 @@ def inline_shapes_buttons_handler(call):
     :return: None
     """
     try:
-        # answer the callback to stop the loading spin
+        collage_settings[call.message.chat.id]["shape"] = call.data
+        buttons_map = {key: key for key in list(EFFECT_MODES.keys())}
+        bot.send_message(
+            call.message.chat.id,
+            "Выберите эффект:",
+            reply_markup=build_context_inline_keyboard(buttons_map),
+        )
         bot.answer_callback_query(call.id)
 
-        data = call.data.split(',')
-        hashtags = data[1:]
-        shape    = data[0]
-        ok, errors, collage = get_collage_by_tags(hashtags, SHAPE_MODES[shape])
+    except Exception as e:
+        logger.error(f"bot.inline_shapes_buttons_handler:: chat: {call.message.chat.id}; Error: {e}")
+        bot.reply_to(call.message, f"{e}\n",
+                    parse_mode='html')
+        bot.send_message(call.message.chat.id,
+                         user_mistake_msg(),
+                         parse_mode='html')
+
+        bot.clear_step_handler(call.message) # unregister next handler, clear context
+
+@bot.callback_query_handler(func=lambda call: call.data in list(EFFECT_MODES.keys()))
+def inline_effects_buttons_handler(call):
+    """
+    This is just a wrapper encapsulating
+    the call to the make_collage handler
+    :param call: choosen button from user
+    :return: None
+    """
+    try:
+        # answer the callback to stop the loading spin
+
+        collage_settings[call.message.chat.id]["effect"] = call.data
+        data = collage_settings[call.message.chat.id]
+        hashtags = data.get("tags")
+        shape = data.get("shape")
+        effect = data.get("effect")
+        ok, errors, collage = get_collage_by_tags(hashtags, SHAPE_MODES[shape], EFFECT_MODES[effect])
         if not ok:
             raise RuntimeError("\n\n".join(errors))
 
         bot.send_photo(call.message.chat.id, collage)
+        bot.answer_callback_query(call.id)
+        # del collage_settings[call.message.chat.id]
 
     except Exception as e:
-        logger.error(f"bot.inline_shapes_buttons_handler:: chat: {call.message.chat.id}; Error: {e}")
+        logger.error(f"bot.inline_effects_buttons_handler:: chat: {call.message.chat.id}; Error: {e}")
         bot.reply_to(call.message, f"{e}\n",
                     parse_mode='html')
         bot.send_message(call.message.chat.id,
