@@ -295,6 +295,15 @@ def request_make_collage(message):
 
     bot.register_next_step_handler(message, callback_make_collage)
 
+def send_shape_message(message, hashtags: list):
+    increment_tag_popularity(hashtags)
+    collage_settings[message.chat.id]["tags"] = hashtags
+    buttons_map = {key: key for key in list(SHAPE_MODES.keys())}
+    bot.send_message(
+        message.chat.id,
+        "Выберите размер холста:",
+        reply_markup=build_context_inline_keyboard(buttons_map),
+    )
 
 def callback_make_collage(message):
     """
@@ -317,14 +326,7 @@ def callback_make_collage(message):
         if not ok:
             raise RuntimeError("\n\n".join(errors))
 
-        increment_tag_popularity(hashtags)
-        collage_settings[message.chat.id]["tags"] = hashtags
-        buttons_map = {key: key for key in list(SHAPE_MODES.keys())}
-        bot.send_message(
-            message.chat.id,
-            "Выберите размер холста:",
-            reply_markup=build_context_inline_keyboard(buttons_map),
-        )
+        send_shape_message(message, hashtags)
 
     except Exception as e:
         logger.error(f"bot.callback_make_collage:: request text: {message.text}; chat: {message.chat.id}; Error: {e}")
@@ -416,19 +418,8 @@ def inline_tags_buttons_handler(call):
     :return: None
     """
     try:
-        # answer the callback to stop the loading spin
+        send_shape_message(call.message, [call.data])
         bot.answer_callback_query(call.id)
-
-        hashtags = [call.data]
-        increment_tag_popularity(hashtags)
-        tags_data = ','.join(hashtags)
-        buttons_map = {key: ','.join([key, tags_data]) for key in list(SHAPE_MODES.keys())}
-        choose_shape_board = build_context_inline_keyboard(buttons_map)
-        bot.send_message(
-            call.message.chat.id,
-            "Выберите размер холста:",
-            reply_markup=choose_shape_board,
-        )
 
     except Exception as e:
         logger.error(f"bot.inline_tags_buttons_handler:: chat: {call.message.chat.id}; Error: {e}")
