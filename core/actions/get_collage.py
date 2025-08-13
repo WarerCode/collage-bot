@@ -9,6 +9,7 @@ from common import *
 from database import *
 from difflib import SequenceMatcher
 from logs.logger import logger
+import numpy as np
 
 
 class Direction:
@@ -45,29 +46,40 @@ class Effects:
     
     @staticmethod
     def apply_glitch(cls, img, intensity: float = 0.1):
-        width, height = img.size
-        pixels = img.load()
-        
-        for _ in range(int(width * height * intensity)):
-            x, y = random.randint(0, width-1), random.randint(0, height-1)
-            pixels[x, y] = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        pixels = np.array(img)
+        width, height = pixels.shape[:2]
 
-        return img
+        rand_mask = np.ones(width * height)
+        rand_mask[range(int(width * height * intensity))] = np.random.random(int(width * height * intensity))*1.5
+        np.random.shuffle(rand_mask)
+        rand_mask = rand_mask.reshape((width, height))
+        
+        if pixels.ndim == 3:
+            rand_mask = rand_mask[:, :, np.newaxis]
+
+        result = (pixels * rand_mask).clip(0, 255).astype(np.uint8)
+
+        return Image.fromarray(result)
 
     @staticmethod
     def apply_vignette(cls, img, darkness: float = 0.8):
-        width, height = img.size
-        pixels = img.load()
-        half_width = width//2
-        half_height = height//2
-        max_radius = ((half_width**2 + half_height**2)**0.5)
-        for y in range(height):
-            for x in range(width):
-                dist = ((x - half_width)**2 + (y - half_height)**2)**0.5
-                intensity = 1 - max(0, dist / max_radius - 0.2) * darkness
-                pixels[x, y] = (int(pixels[x, y][0]*intensity), int(pixels[x, y][1]*intensity), int(pixels[x, y][2]*intensity))
+        pixels = np.array(img)
+        width, height = pixels.shape[:2]
+        max_radius = np.sqrt((width//2)**2 + (height//2)**2)
+
+        x = np.arange(height) - height//2
+        y = np.arange(width) - width//2
+        x, y = np.meshgrid(x, y)
+
+        dist = np.sqrt(x**2 + y**2)
+        intensity = 1 - (dist / max_radius - 0.2).clip(0, 1) * darkness
+
+        if pixels.ndim == 3:
+            intensity = intensity[:, :, np.newaxis]
+
+        result_matrix = (pixels * intensity).clip(0, 255).astype(np.uint8)
         
-        return img
+        return Image.fromarray(result_matrix)
 
 load_dotenv('./config.env')
 MEDIA_ROOT = os.getenv('MEDIA_ROOT')
@@ -130,7 +142,7 @@ EFFECT_MODES = {
     "Оттенки серого": Effects.apply_grayscale,
     "Размытие": Effects.apply_blur,
     "Контрастность": Effects.apply_contrast,
-    "Глитч": Effects.apply_glitch,
+    "Шум": Effects.apply_glitch,
     "Виньетка": Effects.apply_vignette,
     "❌": Effects.apply_nothing,
 }
