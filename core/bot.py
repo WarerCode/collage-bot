@@ -301,8 +301,9 @@ def send_shape_message(message, hashtags: list):
     buttons_map = {key: key for key in list(SHAPE_MODES.keys())}
     bot.send_message(
         message.chat.id,
-        "Выберите размер холста:",
+        CHOOSE_CANVAS_SIZE_MSG,
         reply_markup=build_context_inline_keyboard(buttons_map),
+        parse_mode="html"
     )
 
 def callback_make_collage(message):
@@ -443,10 +444,12 @@ def inline_shapes_buttons_handler(call):
     try:
         collage_settings[call.message.chat.id]["shape"] = call.data
         buttons_map = {key: key for key in list(EFFECT_MODES.keys())}
-        bot.send_message(
-            call.message.chat.id,
-            "Выберите эффект:",
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            text=COLLAGE_EFFECTS_MSG,
+            message_id=call.message.message_id,
             reply_markup=build_context_inline_keyboard(buttons_map),
+            parse_mode="html"
         )
         bot.answer_callback_query(call.id)
 
@@ -480,7 +483,12 @@ def inline_effects_buttons_handler(call):
         if not ok:
             raise RuntimeError("\n\n".join(errors))
 
-        bot.send_photo(call.message.chat.id, collage)
+        bot.send_photo(
+            chat_id=call.message.chat.id, 
+            photo=collage,
+            caption=SHARE_COLLAGE_MSG,
+            parse_mode="html"
+        )
         bot.answer_callback_query(call.id)
         # del collage_settings[call.message.chat.id]
 
