@@ -82,7 +82,7 @@ class MetaData(warer.WarerObject):
         """
         Инициализирует данные из json.
 
-        Параметры:
+        Аргументы:
             obj (dict): словарь для копирования.
         """
         self.reset_hints()
@@ -96,7 +96,7 @@ class MetaData(warer.WarerObject):
         При совпадении ключей - переписывает.
         Похож на self.from_dict.
 
-        Параметры:
+        Аргументы:
             obj (dict): словарь для копирования.
         """
         for key, value in obj.items():
@@ -112,7 +112,7 @@ class MetaData(warer.WarerObject):
         При очистке ключи устанавливаются в None, при удалении — удаляются из hints.
         Несуществующие ключи игнорируются.
 
-        Параметры:
+        Аргументы:
             keys: ключи для удаления (очищения).
             set_none (bool): если True, то не удаляет, а устанавливает в None.
         """
@@ -134,7 +134,7 @@ class MetaData(warer.WarerObject):
         Добавляет объекту спецификацию.
         Полезно при передаче объекта, чтобы уточнить содержимое.
 
-        Параметры:
+        Аргументы:
             flag (MetaData.Type): специальный спецификатор, см MetaData.Type
         """
         self.type = flag

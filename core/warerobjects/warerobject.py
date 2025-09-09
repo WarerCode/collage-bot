@@ -24,6 +24,15 @@ class WarerObject(abc.ABC):
         """
         self.hints = dict()
 
+    def reset_hint(self, key):
+        """
+        Безопасно удаляет поле по ключу.
+
+        Аргументы:
+            key: ключ для удаления.
+        """
+        self.hints.pop(key, None)
+
     def reset_hints(self):
         """
         Сбрасывает состояние подсказок (метаданных) до пустого словаря.
