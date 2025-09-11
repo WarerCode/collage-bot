@@ -77,6 +77,7 @@ class WarerObject(abc.ABC):
         """
         pass
 
+    @property
     @abc.abstractmethod
     def to_dict(self):
         """

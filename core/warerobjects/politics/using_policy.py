@@ -82,13 +82,17 @@ class UsingPolicy(policy.Policy):
         """
         Строковое представление объекта.
         """
-        return f"UsingPolicy(usertype={self._usertype}, permissions={self._permissions}, limits={self._limits})"
+        return (f"UsingPolicy(usertype={self._usertype}, "
+                f"permissions={self._permissions}, "
+                f"limits={self._limits})")
 
     def __repr__(self):
         """
         Формальное строковое представление объекта.
         """
-        return f"(usertype={self._usertype}, permissions={self._permissions}, limits={self._limits})"
+        return (f"(usertype={self._usertype}, "
+                f"permissions={self._permissions}, "
+                f"limits={self._limits})")
 
     def to_dict(self):
         """
@@ -131,6 +135,19 @@ if __name__ == "__main__":
     print("Класс политики использования с разграничением прав и лимитов:")
     help(UsingPolicy)
 
+    print("__str__:")
     for user_type in UsingPolicy.UserType:
         using = UsingPolicy(user_type)
         print(f"Политика использования для {user_type.name}: {using}")
+    print()
+
+    print("__repr__:")
+    for user_type in UsingPolicy.UserType:
+        using = UsingPolicy(user_type)
+        print(f"Политика использования для {user_type.name}: {using.__repr__()}")
+    print()
+
+    print("to_dict:")
+    for user_type in UsingPolicy.UserType:
+        using = UsingPolicy(user_type)
+        print(f"Политика использования для {user_type.name}: {using.to_dict()}")

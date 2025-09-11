@@ -110,18 +110,30 @@ class SizePolicy(policy.Policy):
 
 
 if __name__ == "__main__":
-    print("")
+    print("Класс политики размеров прямоугольников:")
     help(SizePolicy)
 
-    square = SizePolicy(SizePolicy.Size.SQUARE)
-    print(f"Объект политики квадратного холста: {square}")
-    base = 720
-    print(f"Получим размер с масштабом {base}: {square.scale(base)}")
-    base = 360
-    print(f"Получим размер с масштабом {base}: {square.scale(base)}")
+    print("__str__:")
+    for size_mode in SizePolicy.Size:
+        size_policy = SizePolicy(size_mode)
+        print(f"Политика размера для {size_mode.name}: {size_policy}")
     print()
 
-    print("Методы представления объекта:")
-    print(f"__str__: {square.__str__()}")
-    print(f"__repr__: {square.__repr__()}")
-    print(f"to_dict: {square.to_dict()}")
+    print("__repr__:")
+    for size_mode in SizePolicy.Size:
+        size_policy = SizePolicy(size_mode)
+        print(f"Политика размера для {size_mode.name}: {size_policy.__repr__()}")
+    print()
+
+    print("to_dict:")
+    for size_mode in SizePolicy.Size:
+        size_policy = SizePolicy(size_mode)
+        print(f"Политика размера для {size_mode.name}: {size_policy.to_dict()}")
+    print()
+
+    print("scale:")
+    base_size = 720
+    for size_mode in SizePolicy.Size:
+        size_policy = SizePolicy(size_mode)
+        scaled = size_policy.scale(base_size)
+        print(f"Масштаб {base_size} для {size_mode.name}: {scaled}")
