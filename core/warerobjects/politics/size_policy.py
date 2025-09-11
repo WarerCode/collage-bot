@@ -34,29 +34,33 @@ class SizePolicy(policy.Policy):
         HOR_PHONE = (9,16)
         VER_PHONE = (16,9)
 
+        @property
         def width(self):
             """
             Возвращает нормализованую ширину.
             """
             return self.value[0] / max(self.value)
 
+        @property
         def height(self):
             """
             Возвращает нормализованную высоту.
             """
             return self.value[1] / max(self.value)
 
+        @property
         def aspect_ratio(self):
             """
             Возвращает отношение ширины к высоте.
             """
             return self.value[0] / self.value[1]
 
+        @property
         def normalized(self):
             """
             Возвращает нормализованный размер.
             """
-            return self.width(), self.height()
+            return self.width, self.height
 
     def __init__(self, mode: Size):
         """
@@ -99,7 +103,7 @@ class SizePolicy(policy.Policy):
         Параметры:
             base_size (int): единица размера
         """
-        normalized = self._size.normalized()
+        normalized = self._size.normalized
         return (int(normalized[0] * base_size),
                 int(normalized[1] * base_size))
 
