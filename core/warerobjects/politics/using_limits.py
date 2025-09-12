@@ -36,7 +36,7 @@ class Permission(enum.Enum):
     """
 
     # для обычных пользователей
-    NO_PROMOTIONS = "no_promotions" # 
+    NO_PROMOTIONS = "no_promotions" # Без рекламы
     SEND_IMAGES = "send_images" # Отправка изображений
     CREATE_COLLAGE = "create_collage" # Создание коллажа
     EDIT_COLLAGE = "edit_collage" # Редактирование коллажа
@@ -45,8 +45,8 @@ class Permission(enum.Enum):
     # для супер пользователей
     UNLIMITED = "unlimited" # Все разрешения
     MANAGE_USERS = "manage_users" # Управление пользователями
-    ACCESS_STATS = "access_stats" # 
-    CREATE_POLL = "create_poll" # 
+    ACCESS_STATS = "access_stats" # Доступ к статистике
+    CREATE_POLL = "create_poll" # Создание опросов
 
 # Значение бесконечности для числовых атрибутов политики
 NO_LIMIT = None
@@ -56,7 +56,6 @@ NO_LIMIT = None
 COLLAGES_PER_DAYS = "collages_per_day"
 EFFECTS = "effects"
 SISES = "sises"
-IS_FILE_IMAGE = "is_file_image"
 LOADINGS_PER_DAY = "loadings_per_day"
 NOTIFY_PERIOD = "notify_period"
 PERMISSIONS = "permissions"
@@ -95,7 +94,6 @@ class UsingLimits(warer.WarerObject):
         COLLAGES_PER_DAYS: 100,
         EFFECTS: DEFAULT_EFFECTS,
         SISES: DEFAULT_SISES,
-        IS_FILE_IMAGE: False,
         LOADINGS_PER_DAY: 20,
         NOTIFY_PERIOD: 3,
         PERMISSIONS: DEFAULT_PERMISSIONS
@@ -105,7 +103,6 @@ class UsingLimits(warer.WarerObject):
         COLLAGES_PER_DAYS: NO_LIMIT,
         EFFECTS: DEFAULT_EFFECTS + EXTENDED_EFFECTS,
         SISES: DEFAULT_SISES + EXTENDED_SISES,
-        IS_FILE_IMAGE: True,
         LOADINGS_PER_DAY: 100,
         NOTIFY_PERIOD: 7,
         PERMISSIONS: SUBSCRIBE_PERMISSIONS
@@ -115,7 +112,6 @@ class UsingLimits(warer.WarerObject):
         COLLAGES_PER_DAYS: 0,
         EFFECTS: [],
         SISES: [],
-        IS_FILE_IMAGE: False,
         LOADINGS_PER_DAY: 0,
         NOTIFY_PERIOD: 2,
         PERMISSIONS: BANNED_PERMISSIONS
@@ -125,7 +121,6 @@ class UsingLimits(warer.WarerObject):
         COLLAGES_PER_DAYS: NO_LIMIT,
         EFFECTS: DEFAULT_EFFECTS + EXTENDED_EFFECTS,
         SISES: DEFAULT_SISES + EXTENDED_SISES,
-        IS_FILE_IMAGE: True,
         LOADINGS_PER_DAY: NO_LIMIT,
         NOTIFY_PERIOD: NO_LIMIT,
         PERMISSIONS: ADMIN_PERMISSIONS
