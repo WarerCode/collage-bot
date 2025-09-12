@@ -16,6 +16,7 @@ TODO:
 import enum
 
 import core.warerobjects.warerobject as warer
+from core.warerobjects.politics.size_policy import SizePolicy
 
 
 class UserType(enum.Enum):
@@ -35,35 +36,39 @@ class Permission(enum.Enum):
     """
 
     # для обычных пользователей
-    UNLIMITED = "unlimited"
-    NO_PROMOTIONS = "no_promotions"
-    SEND_IMAGES = "send_images"
-    CREATE_COLLAGE = "create_collage"
-    EDIT_COLLAGE = "edit_collage"
-    MORE_EFFECTS = "more_effects"
+    NO_PROMOTIONS = "no_promotions" # 
+    SEND_IMAGES = "send_images" # Отправка изображений
+    CREATE_COLLAGE = "create_collage" # Создание коллажа
+    EDIT_COLLAGE = "edit_collage" # Редактирование коллажа
+    MORE_EFFECTS = "more_effects" # 
 
     # для супер пользователей
-    MANAGE_USERS = "manage_users"
-    ACCESS_STATS = "access_stats"
-    CREATE_POLL = "create_poll"
+    UNLIMITED = "unlimited" # Все разрешения
+    MANAGE_USERS = "manage_users" # Управление пользователями
+    ACCESS_STATS = "access_stats" # 
+    CREATE_POLL = "create_poll" # 
 
-
+# Значение бесконечности для числовых атрибутов политики
 NO_LIMIT = None
 
 
 # Атрибуты политики использования
 COLLAGES_PER_DAYS = "collages_per_day"
 EFFECTS = "effects"
+SISES = "sises"
+IS_FILE_IMAGE = "is_file_image"
 LOADINGS_PER_DAY = "loadings_per_day"
 NOTIFY_PERIOD = "notify_period"
 PERMISSIONS = "permissions"
 
 # Дефолтные значения эффектов и разрешений
-DEFAULT_EFFECTS = ["", "", ""]
-EXTENDED_EFFECTS = ["", "", "", ""]
-DEFAULT_PERMISSIONS = []
-SUBSCRIBE_PERMISSIONS = []
-ADMIN_PERMISSIONS = []
+DEFAULT_EFFECTS = ["default", "gray_scale", "blur", "noise"]
+EXTENDED_EFFECTS = ["vignette", "frame", "stickers", "core"]
+DEFAULT_SISES = [SizePolicy.Size.SQUARE, SizePolicy.Size.HORIZONTAL, SizePolicy.Size.VERTICAL]
+EXTENDED_SISES = [SizePolicy.Size.HOR_PHONE, SizePolicy.Size.VER_PHONE]
+DEFAULT_PERMISSIONS = [Permission.SEND_IMAGES, Permission.CREATE_COLLAGE, Permission.EDIT_COLLAGE]
+SUBSCRIBE_PERMISSIONS = DEFAULT_PERMISSIONS + [Permission.NO_PROMOTIONS, Permission.MORE_EFFECTS]
+ADMIN_PERMISSIONS = [Permission.UNLIMITED]
 BANNED_PERMISSIONS = []
 
 
@@ -89,6 +94,8 @@ class UsingLimits(warer.WarerObject):
     DEFAULT_LIMITS = {
         COLLAGES_PER_DAYS: 100,
         EFFECTS: DEFAULT_EFFECTS,
+        SISES: DEFAULT_SISES,
+        IS_FILE_IMAGE: False,
         LOADINGS_PER_DAY: 20,
         NOTIFY_PERIOD: 3,
         PERMISSIONS: DEFAULT_PERMISSIONS
@@ -96,7 +103,9 @@ class UsingLimits(warer.WarerObject):
 
     SUBSCRIBER_LIMITS = {
         COLLAGES_PER_DAYS: NO_LIMIT,
-        EFFECTS: EXTENDED_EFFECTS,
+        EFFECTS: DEFAULT_EFFECTS + EXTENDED_EFFECTS,
+        SISES: DEFAULT_SISES + EXTENDED_SISES,
+        IS_FILE_IMAGE: True,
         LOADINGS_PER_DAY: 100,
         NOTIFY_PERIOD: 7,
         PERMISSIONS: SUBSCRIBE_PERMISSIONS
@@ -105,6 +114,8 @@ class UsingLimits(warer.WarerObject):
     BANNED_LIMITS = {
         COLLAGES_PER_DAYS: 0,
         EFFECTS: [],
+        SISES: [],
+        IS_FILE_IMAGE: False,
         LOADINGS_PER_DAY: 0,
         NOTIFY_PERIOD: 2,
         PERMISSIONS: BANNED_PERMISSIONS
@@ -112,7 +123,9 @@ class UsingLimits(warer.WarerObject):
 
     ADMIN_LIMITS = {
         COLLAGES_PER_DAYS: NO_LIMIT,
-        EFFECTS: EXTENDED_EFFECTS,
+        EFFECTS: DEFAULT_EFFECTS + EXTENDED_EFFECTS,
+        SISES: DEFAULT_SISES + EXTENDED_SISES,
+        IS_FILE_IMAGE: True,
         LOADINGS_PER_DAY: NO_LIMIT,
         NOTIFY_PERIOD: NO_LIMIT,
         PERMISSIONS: ADMIN_PERMISSIONS
@@ -169,6 +182,7 @@ if __name__ == "__main__":
         print(f"Лимиты для пользователя типа '{user_type.value}':")
         print(f"  Коллажей в день: {limits.value[COLLAGES_PER_DAYS]}")
         print(f"  Эффекты: {limits.value[EFFECTS]}")
+        print(f"  Размеры: {limits.value[SISES]}")
         print(f"  Загрузка в день: {limits.value[LOADINGS_PER_DAY]}")
         print(f"  Период уведомления (дней): {limits.value[NOTIFY_PERIOD]}")
         print(f"  Разрешения: {limits.value[PERMISSIONS]}")
