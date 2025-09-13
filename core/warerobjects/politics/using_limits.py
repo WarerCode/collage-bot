@@ -8,9 +8,6 @@
 - ADMIN_LIMITS — специальные права для администраторов.
 
 Класс UsingLimits предоставляет удобный интерфейс для доступа к этим лимитам по типу пользователя.
-
-TODO:
-    - @JaneeWatermelon уточнить и согласовать реальные значения лимитов и эффектов.
 """
 
 import enum
@@ -40,7 +37,7 @@ class Permission(enum.Enum):
     SEND_IMAGES = "send_images" # Отправка изображений
     CREATE_COLLAGE = "create_collage" # Создание коллажа
     EDIT_COLLAGE = "edit_collage" # Редактирование коллажа
-    MORE_EFFECTS = "more_effects" # 
+    MORE_EFFECTS = "more_effects" # Расширение эффектов
 
     # для супер пользователей
     UNLIMITED = "unlimited" # Все разрешения
