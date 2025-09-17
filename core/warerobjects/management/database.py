@@ -1,7 +1,12 @@
+import os
 import sqlite3
 import psycopg2
 import enum
 from contextlib import contextmanager
+from dotenv import load_dotenv
+
+load_dotenv("config.env")
+
 
 import core.warerobjects.warerobject as warer
 
@@ -30,39 +35,40 @@ class Queries(enum.Enum):
             free_collages_remaining INTEGER DEFAULT %s,
             last_collage_date DATE,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """
     CREATE_TABLE_IMAGES = """
-       CREATE TABLE images (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+       CREATE TABLE IF NOT EXISTS images (
+            id SERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL,
             file_id TEXT UNIQUE NOT NULL,
             times_used INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
         );
     """
     CREATE_TABLE_TAGS = """
-       CREATE TABLE tags (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+       CREATE TABLE IF NOT EXISTS tags (
+            id SERIAL PRIMARY KEY,
             name VARCHAR(30) UNIQUE,
             times_used INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """
     CREATE_TABLE_IMAGE_TAG_RELATIONS = """
-       CREATE TABLE image_tag_relations (
-            image_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tag_id INTEGER PRIMARY KEY AUTOINCREMENT,
+       CREATE TABLE IF NOT EXISTS image_tag_relations (
+            image_id INTEGER,
+            tag_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (image_id, tag_id),
             FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE,
-            FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
         );
     """
     CREATE_TABLE_PAYMENTS = """
-        CREATE TABLE payments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS payments (
+            id SERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL,
             amount DECIMAL(10, 2) NOT NULL,
             currency VARCHAR(3) DEFAULT 'STR',
@@ -73,8 +79,8 @@ class Queries(enum.Enum):
         );
     """
     CREATE_TABLE_SUBSCRIPTION_PLANS = """
-        CREATE TABLE subscription_plans (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS subscription_plans (
+            id SERIAL PRIMARY KEY,
             payment_id INTEGER NOT NULL,
             name VARCHAR(100) NOT NULL,
             description TEXT,
@@ -82,16 +88,27 @@ class Queries(enum.Enum):
             start_date TIMESTAMP NOT NULL,
             end_date TIMESTAMP NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET_NULL
+            FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL
         );
     """
     
 
 class Database(warer.WarerObject):
-    def __init__(self, db_type=DBTypes.SQLITE, **kwargs):
+    def __init__(self, db_type=DBTypes.POSTGRESQL, **kwargs):
         super().__init__()
         self.db_type = db_type
         self.connection_params = kwargs
+
+        queries_list = [
+            (Queries.CREATE_TABLE_USERS.value, (3,)),
+            (Queries.CREATE_TABLE_TAGS.value, None),
+            (Queries.CREATE_TABLE_IMAGES.value, None),
+            (Queries.CREATE_TABLE_IMAGE_TAG_RELATIONS.value, None),
+            (Queries.CREATE_TABLE_PAYMENTS.value, None),
+            (Queries.CREATE_TABLE_SUBSCRIPTION_PLANS.value, None),
+        ]
+
+        self.execute_many(queries_list)
     
     @contextmanager
     def get_connection(self):
@@ -124,6 +141,13 @@ class Database(warer.WarerObject):
             cursor = conn.cursor()
             cursor.execute(query, params or [])
             return cursor
+        
+    def execute_many(self, queries_list: list,):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            for query, params in queries_list:
+                cursor.execute(query, params or [])
+            return cursor
     
     def fetch_one(self, query, params=None):
         with self.get_connection() as conn:
@@ -150,18 +174,20 @@ class Database(warer.WarerObject):
         }
 
 if __name__ == "__main__":
-    print("пример использования политик:")
-    help(Database)
+    print("Пример использования базы данных:")
+    # help(Database)
     print()
 
-    db = Database(DBTypes.SQLITE, database='bot.db')
-    print(db.__str__())
+    # db = Database(DBTypes.POSTGRESQL, database='bot.db')
+    # print(db.__str__())
 
-    db = Database('postgresql', 
-              host='localhost', 
-              database='bot_db',
-              user='user',
-              password='pass')
+    db = Database(DBTypes.POSTGRESQL, 
+              host=os.getenv("DB_HOST"), 
+              database=os.getenv("DB_NAME"),
+              user=os.getenv("DB_USER"),
+              password=os.getenv("DB_PASSWORD"))
     print(db.__str__())
+    print(db.__repr__())
+    print(db.to_dict())
 
     print()
