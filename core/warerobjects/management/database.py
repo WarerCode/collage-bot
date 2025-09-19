@@ -4,6 +4,7 @@ import psycopg2
 import enum
 from contextlib import contextmanager
 from dotenv import load_dotenv
+import abc
 
 load_dotenv("config.env")
 
@@ -17,13 +18,23 @@ class DBTypes(enum.Enum):
     SQLITE = "sqlite"
     POSTGRESQL = "postgresql"
 
+class TableNames(enum.Enum):
+    """
+    Список названий таблиц базы данных
+    """
+    USERS= "users"
+    IMAGES= "images"
+    TAGS= "tags"
+    IMAGE_TAG_RELATIONS= "image_tag_relations"
+    PAYMENTS= "payments"
+    SUBSCRIPTION_PLANS= "subscription_plans"
 
 class Queries(enum.Enum):
     """
     Набор запросов в базу данных
     """
-    CREATE_TABLE_USERS = """
-        CREATE TABLE IF NOT EXISTS users (
+    CREATE_TABLE_USERS = f"""
+        CREATE TABLE IF NOT EXISTS {TableNames.USERS} (
             user_id INTEGER PRIMARY KEY,
             username VARCHAR(100),
             is_bot BOOLEAN DEFAULT FALSE,
@@ -38,8 +49,8 @@ class Queries(enum.Enum):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """
-    CREATE_TABLE_IMAGES = """
-       CREATE TABLE IF NOT EXISTS images (
+    CREATE_TABLE_IMAGES = f"""
+       CREATE TABLE IF NOT EXISTS {TableNames.IMAGES} (
             id SERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL,
             file_id TEXT UNIQUE NOT NULL,
@@ -48,16 +59,16 @@ class Queries(enum.Enum):
             FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
         );
     """
-    CREATE_TABLE_TAGS = """
-       CREATE TABLE IF NOT EXISTS tags (
+    CREATE_TABLE_TAGS = f"""
+       CREATE TABLE IF NOT EXISTS {TableNames.TAGS} (
             id SERIAL PRIMARY KEY,
             name VARCHAR(30) UNIQUE,
             times_used INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """
-    CREATE_TABLE_IMAGE_TAG_RELATIONS = """
-       CREATE TABLE IF NOT EXISTS image_tag_relations (
+    CREATE_TABLE_IMAGE_TAG_RELATIONS = f"""
+       CREATE TABLE IF NOT EXISTS {TableNames.IMAGE_TAG_RELATIONS} (
             image_id INTEGER,
             tag_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -66,8 +77,8 @@ class Queries(enum.Enum):
             FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
         );
     """
-    CREATE_TABLE_PAYMENTS = """
-        CREATE TABLE IF NOT EXISTS payments (
+    CREATE_TABLE_PAYMENTS = f"""
+        CREATE TABLE IF NOT EXISTS {TableNames.PAYMENTS} (
             id SERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL,
             amount DECIMAL(10, 2) NOT NULL,
@@ -78,8 +89,8 @@ class Queries(enum.Enum):
             FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
         );
     """
-    CREATE_TABLE_SUBSCRIPTION_PLANS = """
-        CREATE TABLE IF NOT EXISTS subscription_plans (
+    CREATE_TABLE_SUBSCRIPTION_PLANS = f"""
+        CREATE TABLE IF NOT EXISTS {TableNames.SUBSCRIPTION_PLANS} (
             id SERIAL PRIMARY KEY,
             payment_id INTEGER NOT NULL,
             name VARCHAR(100) NOT NULL,
@@ -91,6 +102,67 @@ class Queries(enum.Enum):
             FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL
         );
     """
+
+class BaseQueries(abc.ABC):
+    """
+    Набор запросов в базу данных для пользователя
+    """
+    @staticmethod
+    def makeCondition(cls, data: dict):
+        res_condition = []
+        for key, val in data.items():
+            res_condition.append(f"{key} = {val}")
+        res_condition = ", ".join(res_condition)
+        return res_condition
+
+    @staticmethod
+    def insert(cls, table_name: TableNames, data: dict):
+        keys = ", ".join(data.keys())
+        values = ", ".join(data.values())
+        query = f"""
+            INSERT INTO 
+            {table_name} ({keys})
+            VALUES ({values});
+        """
+        return query
+    
+    @staticmethod
+    def select(cls, table_name: TableNames, columns: list, conditions: dict=None):
+        columns = ", ".join(columns)
+        if conditions:
+            res_condition = cls.makeCondition(conditions)
+
+            query = f"""
+                SELECT {columns} FROM {table_name} WHERE {res_condition};
+            """
+        else:
+            query = f"""
+                SELECT {columns} FROM {table_name};
+            """
+
+        return query
+    
+    @staticmethod
+    def update(cls, table_name: TableNames, data: dict, conditions: dict=None):
+        items_str = cls.makeCondition(data)
+        if conditions:
+            res_condition = cls.makeCondition(conditions)
+            query = f"""
+                UPDATE {TableNames.USERS} SET {items_str} WHERE {res_condition};
+            """
+        else:
+            query = f"""
+                UPDATE {TableNames.USERS} SET {items_str};
+            """
+        return query
+    
+    @staticmethod
+    def delete(cls, table_name: TableNames, conditions: dict):
+        res_condition = cls.makeCondition(conditions)
+        query = f"""
+            DELETE FROM {table_name} WHERE {res_condition};
+        """
+        return query
     
 
 class Database(warer.WarerObject):
