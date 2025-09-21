@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import psycopg2
+import psycopg2.extras as ps_extras
 import enum
 from contextlib import contextmanager
 from dotenv import load_dotenv
@@ -29,12 +30,28 @@ class TableNames(enum.Enum):
     PAYMENTS= "payments"
     SUBSCRIPTION_PLANS= "subscription_plans"
 
+class TableConfig:
+    """Конфигурация таблиц с информацией о первичных ключах"""
+    
+    TABLE_PRIMARY_KEYS = {
+        TableNames.USERS.value: "user_id",
+        TableNames.IMAGES.value: "id", 
+        TableNames.TAGS.value: "id",
+        TableNames.IMAGE_TAG_RELATIONS.value: ("image_id", "tag_id"),
+        TableNames.PAYMENTS.value: "id",
+        TableNames.SUBSCRIPTION_PLANS.value: "id",
+    }
+    
+    @classmethod
+    def get_primary_key(cls, table_name: str):
+        return (cls.TABLE_PRIMARY_KEYS.get(table_name))
+
 class Queries(enum.Enum):
     """
     Набор запросов в базу данных
     """
     CREATE_TABLE_USERS = f"""
-        CREATE TABLE IF NOT EXISTS {TableNames.USERS} (
+        CREATE TABLE IF NOT EXISTS {TableNames.USERS.value} (
             user_id INTEGER PRIMARY KEY,
             username VARCHAR(100),
             is_bot BOOLEAN DEFAULT FALSE,
@@ -50,7 +67,7 @@ class Queries(enum.Enum):
         );
     """
     CREATE_TABLE_IMAGES = f"""
-       CREATE TABLE IF NOT EXISTS {TableNames.IMAGES} (
+       CREATE TABLE IF NOT EXISTS {TableNames.IMAGES.value} (
             id SERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL,
             file_id TEXT UNIQUE NOT NULL,
@@ -60,7 +77,7 @@ class Queries(enum.Enum):
         );
     """
     CREATE_TABLE_TAGS = f"""
-       CREATE TABLE IF NOT EXISTS {TableNames.TAGS} (
+       CREATE TABLE IF NOT EXISTS {TableNames.TAGS.value} (
             id SERIAL PRIMARY KEY,
             name VARCHAR(30) UNIQUE,
             times_used INTEGER DEFAULT 0,
@@ -68,7 +85,7 @@ class Queries(enum.Enum):
         );
     """
     CREATE_TABLE_IMAGE_TAG_RELATIONS = f"""
-       CREATE TABLE IF NOT EXISTS {TableNames.IMAGE_TAG_RELATIONS} (
+       CREATE TABLE IF NOT EXISTS {TableNames.IMAGE_TAG_RELATIONS.value} (
             image_id INTEGER,
             tag_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -78,7 +95,7 @@ class Queries(enum.Enum):
         );
     """
     CREATE_TABLE_PAYMENTS = f"""
-        CREATE TABLE IF NOT EXISTS {TableNames.PAYMENTS} (
+        CREATE TABLE IF NOT EXISTS {TableNames.PAYMENTS.value} (
             id SERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL,
             amount DECIMAL(10, 2) NOT NULL,
@@ -90,7 +107,7 @@ class Queries(enum.Enum):
         );
     """
     CREATE_TABLE_SUBSCRIPTION_PLANS = f"""
-        CREATE TABLE IF NOT EXISTS {TableNames.SUBSCRIPTION_PLANS} (
+        CREATE TABLE IF NOT EXISTS {TableNames.SUBSCRIPTION_PLANS.value} (
             id SERIAL PRIMARY KEY,
             payment_id INTEGER NOT NULL,
             name VARCHAR(100) NOT NULL,
@@ -107,62 +124,77 @@ class BaseQueries(abc.ABC):
     """
     Набор запросов в базу данных для пользователя
     """
-    @staticmethod
+    @classmethod
     def makeCondition(cls, data: dict):
         res_condition = []
         for key, val in data.items():
-            res_condition.append(f"{key} = {val}")
+            res_condition.append(f"{key} = '{val}'")
         res_condition = ", ".join(res_condition)
         return res_condition
+    
+    @classmethod
+    def makePlaceholders(cls, length: int):
+        return ", ".join(["%s"] * length)
 
-    @staticmethod
+    @classmethod
     def insert(cls, table_name: TableNames, data: dict):
         keys = ", ".join(data.keys())
-        values = ", ".join(data.values())
-        query = f"""
-            INSERT INTO 
-            {table_name} ({keys})
-            VALUES ({values});
-        """
-        return query
-    
-    @staticmethod
-    def select(cls, table_name: TableNames, columns: list, conditions: dict=None):
-        columns = ", ".join(columns)
-        if conditions:
-            res_condition = cls.makeCondition(conditions)
+        pk = TableConfig.get_primary_key(table_name)
 
+        if isinstance(pk, list):
+            # Для составных ключей нужен особый подход
+            conflict_clause = ', '.join(pk)
+        else:
+            conflict_clause = pk
+
+        query = f"""
+            INSERT INTO
+            {table_name} ({keys})
+            VALUES ({cls.makePlaceholders(len(data))})
+            ON CONFLICT ({conflict_clause}) DO NOTHING;
+        """
+        return query, list(data.values())
+    
+    @classmethod
+    def select(cls, table_name: TableNames, columns: list="*", conditions: dict=None):
+        columns = ", ".join(columns)
+        params = []
+        if conditions:
             query = f"""
-                SELECT {columns} FROM {table_name} WHERE {res_condition};
+                SELECT {columns} FROM {table_name} WHERE {cls.makeCondition(conditions)};
             """
         else:
             query = f"""
                 SELECT {columns} FROM {table_name};
             """
 
-        return query
+        return query, params
     
-    @staticmethod
+    @classmethod
     def update(cls, table_name: TableNames, data: dict, conditions: dict=None):
-        items_str = cls.makeCondition(data)
+        params = []
         if conditions:
-            res_condition = cls.makeCondition(conditions)
             query = f"""
-                UPDATE {TableNames.USERS} SET {items_str} WHERE {res_condition};
+                UPDATE {table_name} SET {cls.makeCondition(data)} WHERE {cls.makeCondition(conditions)};
             """
         else:
             query = f"""
-                UPDATE {TableNames.USERS} SET {items_str};
+                UPDATE {table_name} SET {cls.makeCondition(data)};
             """
-        return query
+        return query, params
     
-    @staticmethod
-    def delete(cls, table_name: TableNames, conditions: dict):
-        res_condition = cls.makeCondition(conditions)
-        query = f"""
-            DELETE FROM {table_name} WHERE {res_condition};
-        """
-        return query
+    @classmethod
+    def delete(cls, table_name: TableNames, conditions: dict=None):
+        params = []
+        if conditions:
+            query = f"""
+                DELETE FROM {table_name} WHERE {cls.makeCondition(conditions)};
+            """
+        else:
+            query = f"""
+                DELETE FROM {table_name};
+            """
+        return query, params
     
 
 class Database(warer.WarerObject):
@@ -210,26 +242,26 @@ class Database(warer.WarerObject):
     
     def execute(self, query, params=None):
         with self.get_connection() as conn:
-            cursor = conn.cursor()
+            cursor = conn.cursor(cursor_factory=ps_extras.RealDictCursor)
             cursor.execute(query, params or [])
             return cursor
         
     def execute_many(self, queries_list: list,):
         with self.get_connection() as conn:
-            cursor = conn.cursor()
+            cursor = conn.cursor(cursor_factory=ps_extras.RealDictCursor)
             for query, params in queries_list:
                 cursor.execute(query, params or [])
             return cursor
     
     def fetch_one(self, query, params=None):
         with self.get_connection() as conn:
-            cursor = conn.cursor()
+            cursor = conn.cursor(cursor_factory=ps_extras.RealDictCursor)
             cursor.execute(query, params or [])
             return cursor.fetchone()
     
     def fetch_all(self, query, params=None):
         with self.get_connection() as conn:
-            cursor = conn.cursor()
+            cursor = conn.cursor(cursor_factory=ps_extras.RealDictCursor)
             cursor.execute(query, params or [])
             return cursor.fetchall()
         
@@ -247,17 +279,41 @@ class Database(warer.WarerObject):
 
 if __name__ == "__main__":
     print("Пример использования базы данных:")
-    # help(Database)
     print()
-
-    # db = Database(DBTypes.POSTGRESQL, database='bot.db')
-    # print(db.__str__())
 
     db = Database(DBTypes.POSTGRESQL, 
               host=os.getenv("DB_HOST"), 
               database=os.getenv("DB_NAME"),
               user=os.getenv("DB_USER"),
               password=os.getenv("DB_PASSWORD"))
+    
+    # Очистка перед тестированием
+    q, p = BaseQueries.delete(TableNames.TAGS.value)
+    db.execute(q, p)
+
+    q, p = BaseQueries.insert(TableNames.TAGS.value, {"name": "harry_potter"})
+    db.execute(q, p)
+
+    q, p = BaseQueries.select(TableNames.TAGS.value, conditions={"name": "harry_potter"})
+    temp_tag = db.fetch_one(q, p)
+    print(f"Имя полученного тега: {temp_tag.get("name")}")
+
+    q, p = BaseQueries.update(TableNames.TAGS.value, {"name": "germiona"}, conditions={"id": temp_tag.get("id")})
+    db.execute(q, p)
+    q, p = BaseQueries.select(TableNames.TAGS.value, conditions={"name": "germiona"})
+    temp_tag = db.fetch_one(q, p)
+    print(f"Имя тега после изменения: {temp_tag.get("name")}")
+
+    q, p = BaseQueries.delete(TableNames.TAGS.value, conditions={"id": temp_tag.get("id")})
+    db.execute(q, p)
+    print(f"Тег с именем {temp_tag.get("name")} был удалён")
+
+    q, p = BaseQueries.select(TableNames.TAGS.value, conditions={"name": "harry_potter"})
+    temp_tags = db.fetch_all(q, p)
+    print(f"Список тегов, после удаления: {temp_tags}")
+    print()
+    
+
     print(db.__str__())
     print(db.__repr__())
     print(db.to_dict())
