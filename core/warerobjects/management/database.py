@@ -3,14 +3,14 @@ import sqlite3
 import psycopg2
 import psycopg2.extras as ps_extras
 import enum
-from contextlib import contextmanager
-from dotenv import load_dotenv
+import contextlib
+import dotenv
 import abc
 
-load_dotenv("config.env")
-
-
 import core.warerobjects.warerobject as warer
+
+
+dotenv.load_dotenv("config.env")
 
 class DBTypes(enum.Enum):
     """
@@ -30,7 +30,7 @@ class TableNames(enum.Enum):
     PAYMENTS= "payments"
     SUBSCRIPTION_PLANS= "subscription_plans"
 
-class TableConfig:
+class TableConfig(abc.ABC):
     """Конфигурация таблиц с информацией о первичных ключах"""
     
     TABLE_PRIMARY_KEYS = {
@@ -43,10 +43,20 @@ class TableConfig:
     }
     
     @classmethod
-    def get_primary_key(cls, table_name: str):
-        return (cls.TABLE_PRIMARY_KEYS.get(table_name))
+    def get_primary_key(cls, table_name: TableNames):
+        """
+        Получение первичного ключа таблицы.
 
-class Queries(enum.Enum):
+        Аргументы:
+            table_name (TableNames): имя таблицы
+
+        Возвращает:
+            str: если первичный ключ простой
+            tuple: если первичный ключ составной
+        """
+        return cls.TABLE_PRIMARY_KEYS.get(table_name)
+
+class TableQueries(enum.Enum):
     """
     Набор запросов в базу данных
     """
@@ -125,19 +135,49 @@ class BaseQueries(abc.ABC):
     Набор запросов в базу данных для пользователя
     """
     @classmethod
-    def makeCondition(cls, data: dict):
+    def makeCondition(cls, data: dict, separator: str="AND") -> str:
+        """
+        Формирование строки для передачи в условие WHERE, HAVING.
+
+        Аргументы:
+            data (dict): данные для формирования условия
+            separator (str): разделитель
+
+        Возвращает:
+            str: строка условия
+        """
         res_condition = []
         for key, val in data.items():
             res_condition.append(f"{key} = '{val}'")
-        res_condition = ", ".join(res_condition)
+        res_condition = f" {separator} ".join(res_condition)
         return res_condition
     
     @classmethod
-    def makePlaceholders(cls, length: int):
+    def makePlaceholders(cls, length: int) -> str:
+        """
+        Формирование строки из заполнителей, для дальнейшего ваполнения параметрами.
+
+        Аргументы:
+            length (int): количество заполнителей
+
+        Возвращает:
+            str: строка заполнителей
+        """
         return ", ".join(["%s"] * length)
 
     @classmethod
-    def insert(cls, table_name: TableNames, data: dict):
+    def insert(cls, table_name: TableNames, data: dict) -> tuple[str, list]:
+        """
+        Добавление в таблицу записи.
+
+        Аргументы:
+            table_name (TableNames): имя таблицы
+            data (dict): данные объекта
+
+        Возвращает:
+            str: запрос на вставку
+            list: список параметров
+        """
         keys = ", ".join(data.keys())
         pk = TableConfig.get_primary_key(table_name)
 
@@ -156,7 +196,19 @@ class BaseQueries(abc.ABC):
         return query, list(data.values())
     
     @classmethod
-    def select(cls, table_name: TableNames, columns: list="*", conditions: dict=None):
+    def select(cls, table_name: TableNames, columns: list="*", conditions: dict=None) -> tuple[str, list]:
+        """
+        Получение данных из таблицы.
+
+        Аргументы:
+            table_name (TableNames): имя таблицы
+            columns (list): колонки для получения
+            conditions (dict): условия фильтрации выборки
+
+        Возвращает:
+            str: запрос на получение
+            list: список параметров
+        """
         columns = ", ".join(columns)
         params = []
         if conditions:
@@ -171,20 +223,43 @@ class BaseQueries(abc.ABC):
         return query, params
     
     @classmethod
-    def update(cls, table_name: TableNames, data: dict, conditions: dict=None):
+    def update(cls, table_name: TableNames, data: dict, conditions: dict=None) -> tuple[str, list]:
+        """
+        Обновление записей в таблице.
+
+        Аргументы:
+            table_name (TableNames): имя таблицы
+            data (dict): данные объекта
+            conditions (dict): условия фильтрации выборки
+
+        Возвращает:
+            str: запрос на обновление
+            list: список параметров
+        """
         params = []
         if conditions:
             query = f"""
-                UPDATE {table_name} SET {cls.makeCondition(data)} WHERE {cls.makeCondition(conditions)};
+                UPDATE {table_name} SET {cls.makeCondition(data, ",")} WHERE {cls.makeCondition(conditions)};
             """
         else:
             query = f"""
-                UPDATE {table_name} SET {cls.makeCondition(data)};
+                UPDATE {table_name} SET {cls.makeCondition(data, ",")};
             """
         return query, params
     
     @classmethod
-    def delete(cls, table_name: TableNames, conditions: dict=None):
+    def delete(cls, table_name: TableNames, conditions: dict=None) -> tuple[str, list]:
+        """
+        Удаление записей из таблицы.
+
+        Аргументы:
+            table_name (TableNames): имя таблицы
+            conditions (dict): условия фильтрации выборки
+
+        Возвращает:
+            str: запрос на удаление
+            list: список параметров
+        """
         params = []
         if conditions:
             query = f"""
@@ -204,24 +279,24 @@ class Database(warer.WarerObject):
         self.connection_params = kwargs
 
         queries_list = [
-            (Queries.CREATE_TABLE_USERS.value, (3,)),
-            (Queries.CREATE_TABLE_TAGS.value, None),
-            (Queries.CREATE_TABLE_IMAGES.value, None),
-            (Queries.CREATE_TABLE_IMAGE_TAG_RELATIONS.value, None),
-            (Queries.CREATE_TABLE_PAYMENTS.value, None),
-            (Queries.CREATE_TABLE_SUBSCRIPTION_PLANS.value, None),
+            (TableQueries.CREATE_TABLE_USERS.value, (3,)),
+            (TableQueries.CREATE_TABLE_TAGS.value, None),
+            (TableQueries.CREATE_TABLE_IMAGES.value, None),
+            (TableQueries.CREATE_TABLE_IMAGE_TAG_RELATIONS.value, None),
+            (TableQueries.CREATE_TABLE_PAYMENTS.value, None),
+            (TableQueries.CREATE_TABLE_SUBSCRIPTION_PLANS.value, None),
         ]
 
         self.execute_many(queries_list)
     
-    @contextmanager
+    @contextlib.contextmanager
     def get_connection(self):
         """
         Получение соединения к базе данных
 
-        Использовать конструкцию 
-            < with self.get_connection() as conn: >
-            чтобы соединение закрылось по завершении
+        Пример:
+            >>> with self.get_connection() as conn:
+                    conn.execute(...)
         """
         if self.db_type == DBTypes.SQLITE:
             conn = sqlite3.connect(self.connection_params['database'])
@@ -240,26 +315,63 @@ class Database(warer.WarerObject):
         finally:
             conn.close()
     
-    def execute(self, query, params=None):
+    def execute(self, query: str, params: list=None):
+        """
+        Отправка 1 запроса в базу данных.
+
+        Аргументы:
+            query (str): запрос (составлен BaseQueries, TableQueries или вручную)
+            params (list): параметры для заполнения
+
+        Возвращает:
+            Cursor: курсор базы данных
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor(cursor_factory=ps_extras.RealDictCursor)
             cursor.execute(query, params or [])
             return cursor
         
-    def execute_many(self, queries_list: list,):
+    def execute_many(self, data: list):
+        """
+        Отправка нескольких запросов в базу данных.
+
+        Аргументы:
+            data (list): список кортежей вида:
+                (query (str): запрос, params (list): параметры для заполнения)
+        Возвращает:
+            Cursor: курсор базы данных
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor(cursor_factory=ps_extras.RealDictCursor)
-            for query, params in queries_list:
+            for query, params in data:
                 cursor.execute(query, params or [])
             return cursor
     
     def fetch_one(self, query, params=None):
+        """
+        Получение первой записи из выполненного запроса.
+
+        Аргументы:
+            query (str): запрос (составлен BaseQueries, TableQueries или вручную)
+            params (list): параметры для заполнения
+        Возвращает:
+            RealDictRow: словарь (атрибут: значение) полученной записи
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor(cursor_factory=ps_extras.RealDictCursor)
             cursor.execute(query, params or [])
             return cursor.fetchone()
     
     def fetch_all(self, query, params=None):
+        """
+        Получение первой записи из выполненного запроса.
+
+        Аргументы:
+            query (str): запрос (составлен BaseQueries, TableQueries или вручную)
+            params (list): параметры для заполнения
+        Возвращает:
+            list[RealDictRow]: список словарей (атрибут: значение) полученных записей
+        """
         with self.get_connection() as conn:
             cursor = conn.cursor(cursor_factory=ps_extras.RealDictCursor)
             cursor.execute(query, params or [])
@@ -291,24 +403,24 @@ if __name__ == "__main__":
     q, p = BaseQueries.delete(TableNames.TAGS.value)
     db.execute(q, p)
 
-    q, p = BaseQueries.insert(TableNames.TAGS.value, {"name": "harry_potter"})
+    q, p = BaseQueries.insert(TableNames.TAGS.value, {"name": "harry_potter", "times_used": 1})
     db.execute(q, p)
 
-    q, p = BaseQueries.select(TableNames.TAGS.value, conditions={"name": "harry_potter"})
+    q, p = BaseQueries.select(TableNames.TAGS.value, conditions={"name": "harry_potter", "times_used": 1})
     temp_tag = db.fetch_one(q, p)
-    print(f"Имя полученного тега: {temp_tag.get("name")}")
+    print(f"Полученный тег: {temp_tag}")
 
-    q, p = BaseQueries.update(TableNames.TAGS.value, {"name": "germiona"}, conditions={"id": temp_tag.get("id")})
+    q, p = BaseQueries.update(TableNames.TAGS.value, {"name": "germiona", "times_used": 5}, conditions={"id": temp_tag.get("id")})
     db.execute(q, p)
-    q, p = BaseQueries.select(TableNames.TAGS.value, conditions={"name": "germiona"})
+    q, p = BaseQueries.select(TableNames.TAGS.value, conditions={"name": "germiona", "times_used": 5})
     temp_tag = db.fetch_one(q, p)
-    print(f"Имя тега после изменения: {temp_tag.get("name")}")
+    print(f"Тег после изменения: {temp_tag}")
 
     q, p = BaseQueries.delete(TableNames.TAGS.value, conditions={"id": temp_tag.get("id")})
     db.execute(q, p)
     print(f"Тег с именем {temp_tag.get("name")} был удалён")
 
-    q, p = BaseQueries.select(TableNames.TAGS.value, conditions={"name": "harry_potter"})
+    q, p = BaseQueries.select(TableNames.TAGS.value, conditions={"name": "harry_potter", "times_used": 1})
     temp_tags = db.fetch_all(q, p)
     print(f"Список тегов, после удаления: {temp_tags}")
     print()
