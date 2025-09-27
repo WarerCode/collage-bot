@@ -3,6 +3,10 @@ import numpy as np
 import core.warerobjects.warerobject as warer
 import abc
 import PIL
+import PIL.Image
+import PIL.ImageFilter
+import PIL.ImageEnhance
+
 
 
 class EffectNames(enum.Enum):
@@ -43,10 +47,64 @@ EXTENDED_EFFECTS = BASE_EFFECTS + [
     EffectNames.GOTH_FRAME.value,
 ]
 
-class Effects(abc.ABC):
+class Effects(warer.WarerObject):
     """
     TODO:
     """
+    def __init__(self):
+        """
+        Инициализация объекта.
+        """
+        super().__init__()
+
+    # Base Effects
+
+    @staticmethod
+    def adjust_brightness(image: PIL.Image.Image, factor: float = 1.0) -> PIL.Image.Image:
+        """Регулировка яркости (factor > 1 - ярче, < 1 - темнее)"""
+        enhancer = PIL.ImageEnhance.Brightness(image)
+        return enhancer.enhance(factor)
+
+    @staticmethod
+    def adjust_contrast(image: PIL.Image.Image, factor: float = 1.0) -> PIL.Image.Image:
+        """Регулировка контраста (factor > 1 - контрастнее)"""
+        enhancer = PIL.ImageEnhance.Contrast(image)
+        return enhancer.enhance(factor)
+
+    @staticmethod
+    def adjust_saturation(image: PIL.Image.Image, factor: float = 1.0) -> PIL.Image.Image:
+        """Регулировка насыщенности (factor > 1 - насыщеннее)"""
+        enhancer = PIL.ImageEnhance.Color(image)
+        return enhancer.enhance(factor)
+
+    @staticmethod
+    def adjust_sharpness(image: PIL.Image.Image, factor: float = 1.0) -> PIL.Image.Image:
+        """Регулировка резкости (factor > 1 - резче)"""
+        enhancer = PIL.ImageEnhance.Sharpness(image)
+        return enhancer.enhance(factor)
+
+    @staticmethod
+    def apply_color_filter(image: PIL.Image.Image, rgb_color: tuple, opacity: float = 0.1) -> PIL.Image.Image:
+        """Накладывает цветной фильтр (opacity от 0 до 1)"""
+        color_filter = PIL.Image.new('RGB', image.size, rgb_color)
+        return PIL.Image.blend(image, color_filter, opacity)
+
+    @staticmethod
+    def apply_temperature(image: PIL.Image.Image, warmth: float = 0.1, opacity: float=0.1) -> PIL.Image.Image:
+        """Регулировка цветовой температуры (warmth > 0 - теплее, < 0 - холоднее)"""
+        if warmth > 0:
+            # Теплые тона (оранжевый/желтый)
+            warmth = min(warmth, 1)
+            warm_filter = (np.array([255, 200, 0]) * warmth).astype(int)
+        else:
+            # Холодные тона (синий)
+            warmth = abs(warmth)
+            warmth = min(warmth, 1)
+            warm_filter = (np.array([0, 150, 255]) * warmth).astype(int)
+        return Effects.apply_color_filter(image, tuple(warm_filter), opacity)
+
+    # Main Effects
+
     @staticmethod
     def apply_grayscale(image: PIL.Image.Image) -> PIL.Image.Image:
         """Применяет черно-белый фильтр"""
@@ -81,91 +139,57 @@ class Effects(abc.ABC):
         
         return PIL.Image.composite(image, PIL.Image.new('RGB', image.size, 'black'), vignette)
     
+    # Core Effects
+
     @staticmethod
     def apply_vintage_core(image: PIL.Image.Image) -> PIL.Image.Image:
-        """Винтажный эффект с сепией и шумом"""
-        # Сепия
-        sepia_filter = PIL.Image.new('RGB', image.size, (112, 66, 20))
-        vintage = PIL.Image.blend(image, sepia_filter, 0.3)
-        
-        # Увеличение контраста
-        enhancer = PIL.ImageEnhance.Contrast(vintage)
-        vintage = enhancer.enhance(1.2)
-        
-        # Добавление шума
-        vintage = PIL.ImageEffects.apply_noise(vintage, 0.03)
-        
-        # Легкое виньетирование
-        vintage = PIL.ImageEffects.apply_vignette(vintage, 0.5)
-        
-        return vintage
-    
+        """Винтажный эффект с сепией"""
+        # Сепия и снижение насыщенности
+        result = Effects.apply_color_filter(image, (150, 120, 80), 0.3)
+        result = Effects.adjust_saturation(result, 0.8)
+        result = Effects.adjust_contrast(result, 1.1)
+        result = Effects.apply_noise(result, 0.02)
+        return Effects.apply_vignette(result, 0.2)
+
     @staticmethod
     def apply_indie_core(image: PIL.Image.Image) -> PIL.Image.Image:
-        """Инди-эффект с приглушенными цветами"""
-        # Уменьшение насыщенности
-        enhancer = PIL.ImageEnhance.Color(image)
-        indie = enhancer.enhance(0.7)
-        
-        # Увеличение яркости
-        enhancer = PIL.ImageEnhance.Brightness(indie)
-        indie = enhancer.enhance(1.1)
-        
-        # Легкое размытие
-        indie = PIL.ImageEffects.apply_blur(indie, 1)
-        
-        return indie
-    
+        """Яркие насыщенные цвета как в детском саду"""
+        # Максимальная насыщенность и яркость
+        result = Effects.adjust_saturation(image, 1.8)  # Очень насыщенные цвета
+        result = Effects.adjust_brightness(result, 1.2)  # Ярче
+        result = Effects.adjust_contrast(result, 1.3)   # Высокий контраст
+        result = Effects.adjust_sharpness(result, 2)          # Четкие края
+        return result
+
     @staticmethod
     def apply_old_money_core(image: PIL.Image.Image) -> PIL.Image.Image:
-        """Эффект 'старых денег' с золотыми тонами"""
-        # Золотистый оттенок
-        gold_filter = PIL.Image.new('RGB', image.size, (255, 215, 0))
-        money = PIL.Image.blend(image, gold_filter, 0.2)
-        
-        # Увеличение насыщенности
-        enhancer = PIL.ImageEnhance.Color(money)
-        money = enhancer.enhance(1.3)
-        
-        # Высокий контраст
-        enhancer = PIL.ImageEnhance.Contrast(money)
-        money = enhancer.enhance(1.4)
-        
-        return money
-    
+        """Богатые глубокие тона с золотым отливом"""
+        result = image
+        result = Effects.apply_temperature(result, 1, 0.1)
+        result = Effects.adjust_saturation(result, 0.93)
+        result = Effects.adjust_contrast(result, 0.8)
+        result = Effects.adjust_brightness(result, 0.9)
+        return result
+
     @staticmethod
     def apply_fairy_core(image: PIL.Image.Image) -> PIL.Image.Image:
-        """Сказочный эффект с пастельными тонами"""
-        # Осветление
-        enhancer = PIL.ImageEnhance.Brightness(image)
-        fairy = enhancer.enhance(1.3)
-        
-        # Пастельные тона (уменьшение насыщенности)
-        enhancer = PIL.ImageEnhance.Color(fairy)
-        fairy = enhancer.enhance(0.6)
-        
-        # Легкое свечение (размытие + наложение)
-        blurred = PIL.ImageEffects.apply_blur(fairy, 3)
-        fairy = PIL.Image.blend(fairy, blurred, 0.2)
-        
-        return fairy
-    
+        """Мягкие пастельные тона с легким свечением"""
+        result = Effects.adjust_saturation(image, 0.6)   # Приглушенные цвета
+        result = Effects.adjust_brightness(result, 1.4)  # Очень светлый
+        result = Effects.apply_color_filter(result, (255, 220, 255), 0.1)  # Розовый оттенок
+        result = Effects.apply_blur(result, 1)  # Легкое размытие для свечения
+        return result
+
     @staticmethod
     def apply_golden_hour_core(image: PIL.Image.Image) -> PIL.Image.Image:
-        """Эффект золотого часа с теплыми тонами"""
-        # Теплый оранжевый фильтр
-        golden_filter = PIL.Image.new('RGB', image.size, (255, 165, 0))
-        golden = PIL.Image.blend(image, golden_filter, 0.25)
-        
-        # Увеличение яркости и контраста
-        enhancer = PIL.ImageEnhance.Brightness(golden)
-        golden = enhancer.enhance(1.2)
-        
-        enhancer = PIL.ImageEnhance.Contrast(golden)
-        golden = enhancer.enhance(1.3)
-        
-        return golden
+        """Теплые тона закатного солнца"""
+        result = Effects.apply_temperature(image, 0.7)  # Теплые тона
+        result = Effects.adjust_brightness(result, 1.1)
+        result = Effects.adjust_contrast(result, 1.2)
+        return result
     
+    # Frames Effects
+
     @staticmethod
     def apply_leafes_frame(image: PIL.Image.Image) -> PIL.Image.Image:
         """Добавляет рамку с листьями"""
@@ -204,20 +228,20 @@ class Effects(abc.ABC):
     def apply_effect(cls, image: PIL.Image.Image, effect_name: str) -> PIL.Image.Image:
         """Применяет эффект по имени"""
         effect_methods = {
-            cls.GRAY: cls.apply_grayscale,
-            cls.BLUR: cls.apply_blur,
-            cls.NOISE: cls.apply_noise,
-            cls.VIGNETTE: cls.apply_vignette,
+            EffectNames.GRAY.value: cls.apply_grayscale,
+            EffectNames.BLUR.value: cls.apply_blur,
+            EffectNames.NOISE.value: cls.apply_noise,
+            EffectNames.VIGNETTE.value: cls.apply_vignette,
             
-            cls.VINTAGE_CORE: cls.apply_vintage_core,
-            cls.INDIE_CORE: cls.apply_indie_core,
-            cls.OLD_MONEY_CORE: cls.apply_old_money_core,
-            cls.FAIRY_CORE: cls.apply_fairy_core,
-            cls.GOLDEN_HOUR_CORE: cls.apply_golden_hour_core,
+            EffectNames.VINTAGE_CORE.value: cls.apply_vintage_core,
+            EffectNames.INDIE_CORE.value: cls.apply_indie_core,
+            EffectNames.OLD_MONEY_CORE.value: cls.apply_old_money_core,
+            EffectNames.FAIRY_CORE.value: cls.apply_fairy_core,
+            EffectNames.GOLDEN_HOUR_CORE.value: cls.apply_golden_hour_core,
             
-            cls.LEAFES_FRAME: cls.apply_leafes_frame,
-            cls.PLAIN_FRAME: cls.apply_plain_frame,
-            cls.GOTH_FRAME: cls.apply_goth_frame,
+            EffectNames.LEAFES_FRAME.value: cls.apply_leafes_frame,
+            EffectNames.PLAIN_FRAME.value: cls.apply_plain_frame,
+            EffectNames.GOTH_FRAME.value: cls.apply_goth_frame,
         }
         
         if effect_name not in effect_methods:
@@ -232,5 +256,41 @@ class Effects(abc.ABC):
         for effect_name in effect_names:
             result = cls.apply_effect(result, effect_name)
         return result
-
     
+    def __str__(self):
+        """
+        Преобразует объект в строку.
+        Полезно для отладки или логирования.
+        """
+        pass
+
+    def __repr__(self):
+        """
+        Возвращает строковое представление объекта в стиле Python.
+        """
+        pass
+
+    def to_dict(self):
+        """
+        Возвращает представление объекта в виде словаря (например, для сериализации в JSON).
+
+        Возвращает:
+            dict: словарь, представляющий объект.
+        """
+        pass
+
+if __name__ == "__main__":
+    # Пример использования
+    effects = Effects()
+
+    # Загрузка изображения
+    image = PIL.Image.open("core/assets/effects_test.jpg")
+
+    # Применение одного эффекта
+    for eff in EffectNames:
+        new_image = effects.apply_effect(image, eff.value)
+        new_image.save(f"core/assets/effects_ready/{eff.value}.jpg")
+
+    # eff = EffectNames.GOLDEN_HOUR_CORE
+    # one_image = effects.apply_effect(image, eff.value)
+    # one_image.save(f"core/assets/effects_ready_one/{eff.value}.jpg")
