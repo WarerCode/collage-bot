@@ -1,4 +1,5 @@
 import enum
+import os
 import numpy as np
 import core.warerobjects.warerobject as warer
 import abc
@@ -6,12 +7,16 @@ import PIL
 import PIL.Image
 import PIL.ImageFilter
 import PIL.ImageEnhance
+import core.warerobjects.politics.size_policy as size_policy
+import dotenv
 
-
+dotenv.load_dotenv("dev.env")
+ASSETS_ROOT = os.getenv("ASSETS_ROOT")
+FRAMES_ROOT = os.path.join(ASSETS_ROOT, "frames")
 
 class EffectNames(enum.Enum):
     """
-    TODO:
+    Список названий эффектов
     """
     GRAY = "grayscale"
     BLUR = "blur"
@@ -46,6 +51,57 @@ EXTENDED_EFFECTS = BASE_EFFECTS + [
     EffectNames.PLAIN_FRAME.value,
     EffectNames.GOTH_FRAME.value,
 ]
+
+class Frames(warer.WarerObject):
+    """
+    Класс для работы с рамками.
+
+    Поля класса:
+        base_file_names: словарь названий базовой части файла-эффекта
+    
+    Поля экземпляра:
+        Отсутствуют
+    """
+    base_file_names = {
+        EffectNames.LEAFES_FRAME.value: "leafes",
+        EffectNames.PLAIN_FRAME.value: None,
+        EffectNames.GOTH_FRAME.value: "goth"
+    }
+
+    def __init__(self):
+        """
+        Инициализация объекта.
+        """
+        super().__init__()
+
+    @classmethod
+    def get_file_name(cls, frame_name: str, size: tuple, separator: str="_"):
+        """
+        TODO:
+        """
+        return separator.join([frame_name, *list(map(str, size))]) + ".png"
+    
+    def __str__(self):
+        """
+        Преобразует объект в строку.
+        Полезно для отладки или логирования.
+        """
+        pass
+
+    def __repr__(self):
+        """
+        Возвращает строковое представление объекта в стиле Python.
+        """
+        pass
+
+    def to_dict(self):
+        """
+        Возвращает представление объекта в виде словаря (например, для сериализации в JSON).
+
+        Возвращает:
+            dict: словарь, представляющий объект.
+        """
+        pass
 
 class Effects(warer.WarerObject):
     """
@@ -191,25 +247,43 @@ class Effects(warer.WarerObject):
     # Frames Effects
 
     @staticmethod
-    def apply_leafes_frame(image: PIL.Image.Image) -> PIL.Image.Image:
-        """Добавляет рамку с листьями"""
-        # Создаем простую зеленую рамку (заглушка)
-        border_size = 30
-        frame_color = (34, 139, 34)  # Лесной зеленый
-        
-        # Расширяем изображение с рамкой
-        framed = PIL.ImageOps.expand(image, border=border_size, fill=frame_color)
-        
-        # Можно добавить текстуру листьев здесь
-        # Для реального использования нужны PNG с прозрачностью
-        
-        return framed
+    def apply_leafes_frame(image: PIL.Image.Image, shape: tuple, frame_path: str = "core/assets/frames/leafes.png") -> PIL.Image.Image:
+        """Добавляет рамку с листьями из PNG файла"""
+        try:
+            print(shape)
+            base_name = Frames.base_file_names[EffectNames.LEAFES_FRAME.value]
+            if base_name != None:
+                file_name = Frames.get_file_name(
+                    base_name,
+                    shape
+                )
+            else:
+                raise Exception("File not supported for this effect")
+            # Загружаем рамку с прозрачностью
+            frame = PIL.Image.open(os.path.join(FRAMES_ROOT, file_name)).convert("RGBA")
+            
+            # Изменяем размер рамки под размер изображения
+            frame = frame.resize(image.size, PIL.Image.Resampling.LANCZOS)
+            
+            # Конвертируем основное изображение в RGBA
+            image_rgba = image.convert("RGBA")
+            
+            # Накладываем рамку поверх изображения
+            result = PIL.Image.alpha_composite(image_rgba, frame)
+            
+            return result.convert("RGB")
+            
+        except Exception as e:
+            # Fallback: простая зеленая рамка если файл не найден
+            print(e)
+            border_size = 30
+            frame_color = (34, 139, 34)
+            return PIL.ImageOps.expand(image, border=border_size, fill=frame_color)
     
     @staticmethod
-    def apply_plain_frame(image: PIL.Image.Image) -> PIL.Image.Image:
+    def apply_plain_frame(image: PIL.Image.Image, border_size: int=20, color=(255, 255, 255)) -> PIL.Image.Image:
         """Простая белая рамка"""
-        border_size = 20
-        return PIL.ImageOps.expand(image, border=border_size, fill='white')
+        return PIL.ImageOps.expand(image, border=border_size, fill=color)
     
     @staticmethod
     def apply_goth_frame(image: PIL.Image.Image) -> PIL.Image.Image:
@@ -225,7 +299,7 @@ class Effects(warer.WarerObject):
         return framed
     
     @classmethod
-    def apply_effect(cls, image: PIL.Image.Image, effect_name: str) -> PIL.Image.Image:
+    def apply_effect(cls, image: PIL.Image.Image, effect_name: str, **kwargs: dict) -> PIL.Image.Image:
         """Применяет эффект по имени"""
         effect_methods = {
             EffectNames.GRAY.value: cls.apply_grayscale,
@@ -247,15 +321,7 @@ class Effects(warer.WarerObject):
         if effect_name not in effect_methods:
             raise ValueError(f"Unknown effect: {effect_name}")
         
-        return effect_methods[effect_name](image)
-    
-    @classmethod
-    def apply_multiple_effects(cls, image: PIL.Image.Image, effect_names: list) -> PIL.Image.Image:
-        """Применяет несколько эффектов последовательно"""
-        result = image.copy()
-        for effect_name in effect_names:
-            result = cls.apply_effect(result, effect_name)
-        return result
+        return effect_methods[effect_name](image, **kwargs)
     
     def __str__(self):
         """
@@ -285,12 +351,17 @@ if __name__ == "__main__":
 
     # Загрузка изображения
     image = PIL.Image.open("core/assets/effects_test.jpg")
+    image_1_1 = PIL.Image.open("core/assets/1_1.jpg")
+    image_1_2 = PIL.Image.open("core/assets/1_2.jpg")
 
     # Применение одного эффекта
-    for eff in EffectNames:
-        new_image = effects.apply_effect(image, eff.value)
-        new_image.save(f"core/assets/effects_ready/{eff.value}.jpg")
+    # for eff in EffectNames:
+    #     new_image = effects.apply_effect(image, eff.value)
+    #     new_image.save(f"core/assets/effects_ready/{eff.value}.jpg")
 
-    # eff = EffectNames.GOLDEN_HOUR_CORE
-    # one_image = effects.apply_effect(image, eff.value)
-    # one_image.save(f"core/assets/effects_ready_one/{eff.value}.jpg")
+    # Test frames effects
+    eff = EffectNames.LEAFES_FRAME
+    one_image = effects.apply_effect(image_1_1, eff.value, **{"shape": size_policy.SizePolicy.Size.SQUARE.value})
+    one_image.save(f"core/assets/effects_ready_one/{eff.value}.jpg")
+    one_image = effects.apply_effect(image_1_2, eff.value, **{"shape": size_policy.SizePolicy.Size.HORIZONTAL.value})
+    one_image.save(f"core/assets/effects_ready_one/{eff.value}_2.jpg")
