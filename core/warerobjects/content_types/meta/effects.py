@@ -11,6 +11,7 @@ import core.warerobjects.politics.size_policy as size_policy
 import dotenv
 
 dotenv.load_dotenv("dev.env")
+MEDIA_ROOT = os.getenv("MEDIA_ROOT")
 ASSETS_ROOT = os.getenv("ASSETS_ROOT")
 FRAMES_ROOT = os.path.join(ASSETS_ROOT, "frames")
 
@@ -33,6 +34,7 @@ class EffectNames(enum.Enum):
     PLAIN_FRAME = "plain_frame"
     GOTH_FRAME = "goth_frame"
 
+# Список базовых эффектов
 BASE_EFFECTS = [
     EffectNames.GRAY.value,
     EffectNames.BLUR.value,
@@ -40,6 +42,7 @@ BASE_EFFECTS = [
     EffectNames.VIGNETTE.value,
 ]
 
+# Список расширенных эффектов
 EXTENDED_EFFECTS = BASE_EFFECTS + [
     EffectNames.VINTAGE_CORE.value,
     EffectNames.INDIE_CORE.value,
@@ -57,12 +60,12 @@ class Frames(warer.WarerObject):
     Класс для работы с рамками.
 
     Поля класса:
-        base_file_names: словарь названий базовой части файла-эффекта
+        sub_dirs: словарь поддиректорий, где хранятся соответствующие рамки
     
     Поля экземпляра:
         Отсутствуют
     """
-    base_file_names = {
+    sub_dirs = {
         EffectNames.LEAFES_FRAME.value: "leafes",
         EffectNames.PLAIN_FRAME.value: None,
         EffectNames.GOTH_FRAME.value: "goth"
@@ -75,11 +78,17 @@ class Frames(warer.WarerObject):
         super().__init__()
 
     @classmethod
-    def get_file_name(cls, frame_name: str, size: tuple, separator: str="_"):
+    def get_file_name(cls, size: tuple, separator: str="_"):
         """
-        TODO:
+        Получение имени файла рамки с расширением
+
+        Аргументы:
+            size: кортеж формы рамки, например (16, 9)
+            separator: разделитель по которому склеивается кортеж
+        Возвращает:
+            Строку - название файла с расширением
         """
-        return separator.join([frame_name, *list(map(str, size))]) + ".png"
+        return separator.join(list(map(str, size))) + ".png"
     
     def __str__(self):
         """
@@ -105,7 +114,13 @@ class Frames(warer.WarerObject):
 
 class Effects(warer.WarerObject):
     """
-    TODO:
+    Класс для работы с эффектами.
+
+    Поля класса:
+        Отсутствуют
+    
+    Поля экземпляра:
+        Отсутствуют
     """
     def __init__(self):
         """
@@ -114,40 +129,104 @@ class Effects(warer.WarerObject):
         super().__init__()
 
     # Base Effects
-
     @staticmethod
     def adjust_brightness(image: PIL.Image.Image, factor: float = 1.0) -> PIL.Image.Image:
-        """Регулировка яркости (factor > 1 - ярче, < 1 - темнее)"""
+        """
+        Регулировка яркости изображения
+
+        Аргументы:
+            image: исходное изображение
+            factor: коэффициент 
+                - (factor > 1 - ярче)
+                - (factor < 1 - темнее)
+                - (factor = 1 - исходное)
+        Возвращает:
+            Изображение после применения эффекта
+        """
         enhancer = PIL.ImageEnhance.Brightness(image)
         return enhancer.enhance(factor)
 
     @staticmethod
     def adjust_contrast(image: PIL.Image.Image, factor: float = 1.0) -> PIL.Image.Image:
-        """Регулировка контраста (factor > 1 - контрастнее)"""
+        """
+        Регулировка контраста изображения
+
+        Аргументы:
+            image: исходное изображение
+            factor: коэффициент 
+                - (factor > 1 - контрастнее)
+                - (factor < 1 - бледнее)
+                - (factor = 1 - исходное)
+        Возвращает:
+            Изображение после применения эффекта
+        """
         enhancer = PIL.ImageEnhance.Contrast(image)
         return enhancer.enhance(factor)
 
     @staticmethod
     def adjust_saturation(image: PIL.Image.Image, factor: float = 1.0) -> PIL.Image.Image:
-        """Регулировка насыщенности (factor > 1 - насыщеннее)"""
+        """
+        Регулировка насыщенности изображения
+
+        Аргументы:
+            image: исходное изображение
+            factor: коэффициент 
+                - (factor > 1 - насыщеннее)
+                - (factor < 1 - более серое)
+                - (factor = 1 - исходное)
+        Возвращает:
+            Изображение после применения эффекта
+        """
         enhancer = PIL.ImageEnhance.Color(image)
         return enhancer.enhance(factor)
 
     @staticmethod
     def adjust_sharpness(image: PIL.Image.Image, factor: float = 1.0) -> PIL.Image.Image:
-        """Регулировка резкости (factor > 1 - резче)"""
+        """
+        Регулировка резкости изображения
+
+        Аргументы:
+            image: исходное изображение
+            factor: коэффициент 
+                - (factor > 1 - резче)
+                - (factor < 1 - мыльнее)
+                - (factor = 1 - исходное)
+        Возвращает:
+            Изображение после применения эффекта
+        """
         enhancer = PIL.ImageEnhance.Sharpness(image)
         return enhancer.enhance(factor)
 
     @staticmethod
     def apply_color_filter(image: PIL.Image.Image, rgb_color: tuple, opacity: float = 0.1) -> PIL.Image.Image:
-        """Накладывает цветной фильтр (opacity от 0 до 1)"""
+        """
+        Накладывает цветной фильтр на изображение
+
+        Аргументы:
+            image: исходное изображение
+            rgb_color: кортеж цвета в формате RGB
+            opacity: непрозрачность от 0 до 1
+        Возвращает:
+            Изображение после применения эффекта
+        """
         color_filter = PIL.Image.new('RGB', image.size, rgb_color)
         return PIL.Image.blend(image, color_filter, opacity)
 
     @staticmethod
     def apply_temperature(image: PIL.Image.Image, warmth: float = 0.1, opacity: float=0.1) -> PIL.Image.Image:
-        """Регулировка цветовой температуры (warmth > 0 - теплее, < 0 - холоднее)"""
+        """
+        Регулировка температуры изображения
+
+        Аргументы:
+            image: исходное изображение
+            opacity: непрозрачность от 0 до 1
+            warmth: коэффициент 
+                - (warmth > 0 - теплее)
+                - (warmth < 0 - холоднее)
+                - (warmth = 0 - исходное)
+        Возвращает:
+            Изображение после применения эффекта
+        """
         if warmth > 0:
             # Теплые тона (оранжевый/желтый)
             warmth = min(warmth, 1)
@@ -160,20 +239,46 @@ class Effects(warer.WarerObject):
         return Effects.apply_color_filter(image, tuple(warm_filter), opacity)
 
     # Main Effects
-
     @staticmethod
     def apply_grayscale(image: PIL.Image.Image) -> PIL.Image.Image:
-        """Применяет черно-белый фильтр"""
+        """
+        Применяет черно-белый фильтр на изображение
+
+        Аргументы:
+            image: исходное изображение
+        Возвращает:
+            Изображение после применения эффекта
+        """
         return image.convert('L').convert('RGB')
     
     @staticmethod
-    def apply_blur(image: PIL.Image.Image, radius: int = 2) -> PIL.Image.Image:
-        """Применяет размытие по Гауссу"""
+    def apply_blur(image: PIL.Image.Image, radius: int = 1.5) -> PIL.Image.Image:
+        """
+        Применяет размытие на изображение
+
+        Аргументы:
+            image: исходное изображение
+            radius: радиус размытия 
+                - (radius > 0 - мыльнее)
+                - (radius = 0 - исходное)
+        Возвращает:
+            Изображение после применения эффекта
+        """
         return image.filter(PIL.ImageFilter.GaussianBlur(radius))
     
     @staticmethod
     def apply_noise(image: PIL.Image.Image, intensity: float = 0.05) -> PIL.Image.Image:
-        """Добавляет шум к изображению"""
+        """
+        Применяет шум на изображение
+
+        Аргументы:
+            image: исходное изображение
+            intensity: интенсивность 
+                - (intensity > 0 - шумнее)
+                - (intensity = 0 - исходное)
+        Возвращает:
+            Изображение после применения эффекта
+        """
         img_array = np.array(image)
         noise = np.random.normal(0, intensity * 255, img_array.shape)
         noisy_array = np.clip(img_array + noise, 0, 255).astype(np.uint8)
@@ -181,7 +286,17 @@ class Effects(warer.WarerObject):
     
     @staticmethod
     def apply_vignette(image: PIL.Image.Image, intensity: float = 0.8) -> PIL.Image.Image:
-        """Применяет виньетирование (затемнение краев)"""
+        """
+        Применяет виньетирование (затемнение краев) на изображение
+
+        Аргументы:
+            image: исходное изображение
+            intensity: интенсивность 
+                - (intensity > 0 - темнее)
+                - (intensity = 0 - исходное)
+        Возвращает:
+            Изображение после применения эффекта
+        """
         width, height = image.size
         x_center, y_center = width // 2, height // 2
         max_dist = np.sqrt(x_center**2 + y_center**2)
@@ -199,7 +314,14 @@ class Effects(warer.WarerObject):
 
     @staticmethod
     def apply_vintage_core(image: PIL.Image.Image) -> PIL.Image.Image:
-        """Винтажный эффект с сепией"""
+        """
+        Винтажный эффект (Vintage Core)
+
+        Аргументы:
+            image: исходное изображение
+        Возвращает:
+            Изображение после применения эффекта
+        """
         # Сепия и снижение насыщенности
         result = Effects.apply_color_filter(image, (150, 120, 80), 0.3)
         result = Effects.adjust_saturation(result, 0.8)
@@ -209,7 +331,14 @@ class Effects(warer.WarerObject):
 
     @staticmethod
     def apply_indie_core(image: PIL.Image.Image) -> PIL.Image.Image:
-        """Яркие насыщенные цвета как в детском саду"""
+        """
+        Яркие насыщенные цвета (Indie Core)
+
+        Аргументы:
+            image: исходное изображение
+        Возвращает:
+            Изображение после применения эффекта
+        """
         # Максимальная насыщенность и яркость
         result = Effects.adjust_saturation(image, 1.8)  # Очень насыщенные цвета
         result = Effects.adjust_brightness(result, 1.2)  # Ярче
@@ -219,7 +348,14 @@ class Effects(warer.WarerObject):
 
     @staticmethod
     def apply_old_money_core(image: PIL.Image.Image) -> PIL.Image.Image:
-        """Богатые глубокие тона с золотым отливом"""
+        """
+        Богатые глубокие тона (Old Money Core)
+
+        Аргументы:
+            image: исходное изображение
+        Возвращает:
+            Изображение после применения эффекта
+        """
         result = image
         result = Effects.apply_temperature(result, 1, 0.1)
         result = Effects.adjust_saturation(result, 0.93)
@@ -229,7 +365,14 @@ class Effects(warer.WarerObject):
 
     @staticmethod
     def apply_fairy_core(image: PIL.Image.Image) -> PIL.Image.Image:
-        """Мягкие пастельные тона с легким свечением"""
+        """
+        Мягкие пастельные тона с легким свечением (Fairy Core)
+
+        Аргументы:
+            image: исходное изображение
+        Возвращает:
+            Изображение после применения эффекта
+        """
         result = Effects.adjust_saturation(image, 0.6)   # Приглушенные цвета
         result = Effects.adjust_brightness(result, 1.4)  # Очень светлый
         result = Effects.apply_color_filter(result, (255, 220, 255), 0.1)  # Розовый оттенок
@@ -238,7 +381,14 @@ class Effects(warer.WarerObject):
 
     @staticmethod
     def apply_golden_hour_core(image: PIL.Image.Image) -> PIL.Image.Image:
-        """Теплые тона закатного солнца"""
+        """
+        Теплые тона закатного солнца (Golden Hour Core)
+
+        Аргументы:
+            image: исходное изображение
+        Возвращает:
+            Изображение после применения эффекта
+        """
         result = Effects.apply_temperature(image, 0.7)  # Теплые тона
         result = Effects.adjust_brightness(result, 1.1)
         result = Effects.adjust_contrast(result, 1.2)
@@ -247,20 +397,24 @@ class Effects(warer.WarerObject):
     # Frames Effects
 
     @staticmethod
-    def apply_leafes_frame(image: PIL.Image.Image, shape: tuple, frame_path: str = "core/assets/frames/leafes.png") -> PIL.Image.Image:
-        """Добавляет рамку с листьями из PNG файла"""
+    def apply_leafes_frame(image: PIL.Image.Image, shape: tuple) -> PIL.Image.Image:
+        """
+        Добавляет рамку с листьями
+
+        Аргументы:
+            image: исходное изображение
+            shape: кортеж формы рамки, например (16, 9)
+        Возвращает:
+            Изображение после применения эффекта
+        """
         try:
-            print(shape)
-            base_name = Frames.base_file_names[EffectNames.LEAFES_FRAME.value]
-            if base_name != None:
-                file_name = Frames.get_file_name(
-                    base_name,
-                    shape
-                )
+            sub_dir = Frames.sub_dirs[EffectNames.LEAFES_FRAME.value]
+            if sub_dir != None:
+                file_name = Frames.get_file_name(shape)
             else:
                 raise Exception("File not supported for this effect")
             # Загружаем рамку с прозрачностью
-            frame = PIL.Image.open(os.path.join(FRAMES_ROOT, file_name)).convert("RGBA")
+            frame = PIL.Image.open(os.path.join(FRAMES_ROOT, sub_dir, file_name)).convert("RGBA")
             
             # Изменяем размер рамки под размер изображения
             frame = frame.resize(image.size, PIL.Image.Resampling.LANCZOS)
@@ -282,25 +436,74 @@ class Effects(warer.WarerObject):
     
     @staticmethod
     def apply_plain_frame(image: PIL.Image.Image, border_size: int=20, color=(255, 255, 255)) -> PIL.Image.Image:
-        """Простая белая рамка"""
+        """
+        Простая рамка
+
+        Аргументы:
+            image: исходное изображение
+            border_size: толщина рамки в пикселях
+            color: кортеж цвета рамки в формате RGB
+        Возвращает:
+            Изображение после применения эффекта
+        """
         return PIL.ImageOps.expand(image, border=border_size, fill=color)
     
     @staticmethod
-    def apply_goth_frame(image: PIL.Image.Image) -> PIL.Image.Image:
-        """Готическая черная рамка с узором"""
-        border_size = 40
-        framed = PIL.ImageOps.expand(image, border=border_size, fill='black')
-        
-        # Добавляем внутреннюю тонкую рамку
-        inner_border = 5
-        framed = PIL.ImageOps.expand(framed, border=inner_border, fill='darkred')
-        framed = PIL.ImageOps.expand(framed, border=inner_border, fill='black')
-        
-        return framed
+    def apply_goth_frame(image: PIL.Image.Image, shape: tuple) -> PIL.Image.Image:
+        """
+        Готическая черная рамка
+
+        Аргументы:
+            image: исходное изображение
+            shape: кортеж формы рамки, например (16, 9)
+        Возвращает:
+            Изображение после применения эффекта
+        """
+        try:
+            sub_dir = Frames.sub_dirs[EffectNames.GOTH_FRAME.value]
+            if sub_dir != None:
+                file_name = Frames.get_file_name(shape)
+            else:
+                raise Exception("File not supported for this effect")
+            # Загружаем рамку с прозрачностью
+            frame = PIL.Image.open(os.path.join(FRAMES_ROOT, sub_dir, file_name)).convert("RGBA")
+            
+            # Изменяем размер рамки под размер изображения
+            frame = frame.resize(image.size, PIL.Image.Resampling.LANCZOS)
+            
+            # Конвертируем основное изображение в RGBA
+            image_rgba = image.convert("RGBA")
+            
+            # Накладываем рамку поверх изображения
+            result = PIL.Image.alpha_composite(image_rgba, frame)
+            
+            return result.convert("RGB")
+            
+        except Exception as e:
+            # Fallback: простая зеленая рамка если файл не найден
+            print(e)
+            border_size = 40
+            framed = PIL.ImageOps.expand(image, border=border_size, fill='black')
+            
+            # Добавляем внутреннюю тонкую рамку
+            inner_border = 5
+            framed = PIL.ImageOps.expand(framed, border=inner_border, fill='darkred')
+            framed = PIL.ImageOps.expand(framed, border=inner_border, fill='black')
+            
+            return framed
     
     @classmethod
     def apply_effect(cls, image: PIL.Image.Image, effect_name: str, **kwargs: dict) -> PIL.Image.Image:
-        """Применяет эффект по имени"""
+        """
+        Применяет эффект по имени из перечислителя EffectNames
+
+        Аргументы:
+            image: исходное изображение
+            effect_name: название эффекта
+            **kwargs: дополнительные параметры для передачи в функцию конкретного эффекта
+        Возвращает:
+            Изображение после применения эффекта
+        """
         effect_methods = {
             EffectNames.GRAY.value: cls.apply_grayscale,
             EffectNames.BLUR.value: cls.apply_blur,
@@ -349,19 +552,26 @@ if __name__ == "__main__":
     # Пример использования
     effects = Effects()
 
-    # Загрузка изображения
-    image = PIL.Image.open("core/assets/effects_test.jpg")
-    image_1_1 = PIL.Image.open("core/assets/1_1.jpg")
-    image_1_2 = PIL.Image.open("core/assets/1_2.jpg")
+    # Загрузка изображений
+    image = PIL.Image.open(os.path.join(ASSETS_ROOT, "test", "effects_test.jpg"))
+    image_1_1 = PIL.Image.open(os.path.join(ASSETS_ROOT, "test", "1_1.jpg"))
+    image_1_2 = PIL.Image.open(os.path.join(ASSETS_ROOT, "test", "1_2.jpg"))
 
     # Применение одного эффекта
-    # for eff in EffectNames:
-    #     new_image = effects.apply_effect(image, eff.value)
-    #     new_image.save(f"core/assets/effects_ready/{eff.value}.jpg")
+    for eff in EffectNames:
+        try:
+            new_image = effects.apply_effect(image, eff.value)
+            new_image.save(os.path.join(MEDIA_ROOT, f"{eff.value}.jpg"))
+        except Exception as e:
+            print(e)
+            continue
 
-    # Test frames effects
-    eff = EffectNames.LEAFES_FRAME
-    one_image = effects.apply_effect(image_1_1, eff.value, **{"shape": size_policy.SizePolicy.Size.SQUARE.value})
-    one_image.save(f"core/assets/effects_ready_one/{eff.value}.jpg")
-    one_image = effects.apply_effect(image_1_2, eff.value, **{"shape": size_policy.SizePolicy.Size.HORIZONTAL.value})
-    one_image.save(f"core/assets/effects_ready_one/{eff.value}_2.jpg")
+    # Тест эффектов-рамок
+    one_image = effects.apply_effect(image_1_1, EffectNames.LEAFES_FRAME.value, **{"shape": size_policy.SizePolicy.Size.SQUARE.value})
+    one_image.save(os.path.join(MEDIA_ROOT, f"{EffectNames.LEAFES_FRAME.value}.jpg"))
+
+    one_image = effects.apply_effect(image_1_2, EffectNames.GOTH_FRAME.value, **{"shape": size_policy.SizePolicy.Size.HORIZONTAL.value})
+    one_image.save(os.path.join(MEDIA_ROOT, f"{EffectNames.GOTH_FRAME.value}.jpg"))
+
+    one_image = effects.apply_effect(image, EffectNames.PLAIN_FRAME.value, **{"border_size": 20, "color": (100, 100, 255)})
+    one_image.save(os.path.join(MEDIA_ROOT, f"{EffectNames.PLAIN_FRAME.value}.jpg"))
