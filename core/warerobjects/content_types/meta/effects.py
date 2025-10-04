@@ -1,14 +1,14 @@
 import enum
 import os
 import numpy as np
-import core.warerobjects.warerobject as warer
-import abc
+import dotenv
 import PIL
 import PIL.Image
 import PIL.ImageFilter
 import PIL.ImageEnhance
 import core.warerobjects.politics.size_policy as size_policy
-import dotenv
+import core.warerobjects.warerobject as warer
+
 
 dotenv.load_dotenv("dev.env")
 MEDIA_ROOT = os.getenv("MEDIA_ROOT")
@@ -493,7 +493,10 @@ class Effects(warer.WarerObject):
             return framed
     
     @classmethod
-    def apply_effect(cls, image: PIL.Image.Image, effect_name: str, **kwargs: dict) -> PIL.Image.Image:
+    def apply_effect(cls,
+                     image: PIL.Image.Image,
+                     effect_name: str,
+                     **kwargs: dict) -> PIL.Image.Image:
         """
         Применяет эффект по имени из перечислителя EffectNames
 
