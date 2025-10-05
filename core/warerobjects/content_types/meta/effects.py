@@ -460,6 +460,8 @@ class Effects(warer.WarerObject):
             Изображение после применения эффекта
         """
         try:
+            image = Effects.apply_vignette(image)
+
             sub_dir = Frames.sub_dirs[EffectNames.GOTH_FRAME.value]
             if sub_dir != None:
                 file_name = Frames.get_file_name(shape)
@@ -480,7 +482,7 @@ class Effects(warer.WarerObject):
             return result.convert("RGB")
             
         except Exception as e:
-            # Fallback: простая зеленая рамка если файл не найден
+            # Fallback: простая готическая рамка если файл не найден
             print(e)
             border_size = 40
             framed = PIL.ImageOps.expand(image, border=border_size, fill='black')
@@ -573,7 +575,7 @@ if __name__ == "__main__":
     one_image = effects.apply_effect(image_1_1, EffectNames.LEAFES_FRAME.value, **{"shape": size_policy.SizePolicy.Size.SQUARE.value})
     one_image.save(os.path.join(MEDIA_ROOT, f"{EffectNames.LEAFES_FRAME.value}.jpg"))
 
-    one_image = effects.apply_effect(image_1_2, EffectNames.GOTH_FRAME.value, **{"shape": size_policy.SizePolicy.Size.HORIZONTAL.value})
+    one_image = effects.apply_effect(image_1_1, EffectNames.GOTH_FRAME.value, **{"shape": size_policy.SizePolicy.Size.SQUARE.value})
     one_image.save(os.path.join(MEDIA_ROOT, f"{EffectNames.GOTH_FRAME.value}.jpg"))
 
     one_image = effects.apply_effect(image, EffectNames.PLAIN_FRAME.value, **{"border_size": 20, "color": (100, 100, 255)})
