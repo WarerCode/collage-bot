@@ -10,7 +10,7 @@ import abc
 import core.warerobjects.warerobject as warer
 
 
-dotenv.load_dotenv("config.env")
+dotenv.load_dotenv(r"E:\портфолио студента\материалы\2025 - 2026\Programming\Python\collage bot\config.env")
 
 class DBTypes(enum.Enum):
     """
@@ -393,38 +393,38 @@ if __name__ == "__main__":
     print("Пример использования базы данных:")
     print()
 
-    db = Database(DBTypes.POSTGRESQL, 
-              host=os.getenv("DB_HOST"), 
+    db = Database(DBTypes.POSTGRESQL,
+              host=os.getenv("DB_HOST"),
               database=os.getenv("DB_NAME"),
               user=os.getenv("DB_USER"),
               password=os.getenv("DB_PASSWORD"))
-    
+
     # Очистка перед тестированием
-    q, p = BaseQueries.delete(TableNames.TAGS.value)
+    q, p = BaseQueries.delete(TableNames.TAGS)
     db.execute(q, p)
 
-    q, p = BaseQueries.insert(TableNames.TAGS.value, {"name": "harry_potter", "times_used": 1})
+    q, p = BaseQueries.insert(TableNames.TAGS, {"name": "harry_potter", "times_used": 1})
     db.execute(q, p)
 
-    q, p = BaseQueries.select(TableNames.TAGS.value, conditions={"name": "harry_potter", "times_used": 1})
+    q, p = BaseQueries.select(TableNames.TAGS, conditions={"name": "harry_potter", "times_used": 1})
     temp_tag = db.fetch_one(q, p)
     print(f"Полученный тег: {temp_tag}")
 
-    q, p = BaseQueries.update(TableNames.TAGS.value, {"name": "germiona", "times_used": 5}, conditions={"id": temp_tag.get("id")})
+    q, p = BaseQueries.update(TableNames.TAGS, {"name": "germiona", "times_used": 5}, conditions={"id": temp_tag.get("id")})
     db.execute(q, p)
-    q, p = BaseQueries.select(TableNames.TAGS.value, conditions={"name": "germiona", "times_used": 5})
+    q, p = BaseQueries.select(TableNames.TAGS, conditions={"name": "germiona", "times_used": 5})
     temp_tag = db.fetch_one(q, p)
     print(f"Тег после изменения: {temp_tag}")
 
-    q, p = BaseQueries.delete(TableNames.TAGS.value, conditions={"id": temp_tag.get("id")})
+    q, p = BaseQueries.delete(TableNames.TAGS, conditions={"id": temp_tag.get("id")})
     db.execute(q, p)
     print(f"Тег с именем {temp_tag.get("name")} был удалён")
 
-    q, p = BaseQueries.select(TableNames.TAGS.value, conditions={"name": "harry_potter", "times_used": 1})
+    q, p = BaseQueries.select(TableNames.TAGS, conditions={"name": "harry_potter", "times_used": 1})
     temp_tags = db.fetch_all(q, p)
     print(f"Список тегов, после удаления: {temp_tags}")
     print()
-    
+
 
     print(db.__str__())
     print(db.__repr__())
