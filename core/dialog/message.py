@@ -1,10 +1,13 @@
 """
-
+Здесь описан класс инкапсулирующий сообщение в телеграме.
+Предоставляет интерфейс доступа к главным полям и мультимедия
 """
 
 import telebot.types as types
 
 import core.warerobjects.warerobject as warer
+import core.dialog.media as media
+import core.warerobjects.politics.content_policy as content_policy
 
 
 class ContextMessage(warer.WarerObject):
@@ -43,8 +46,17 @@ class ContextMessage(warer.WarerObject):
 
         """
         return {
-            "message" : self.message
+            "message" : self.message,
+            "hints" : self.hints
         }
+
+    def setup_media(self,
+                    media: media.Media,
+                    policy: content_policy.ContentPolicy):
+        """
+
+        """
+        pass
 
 
 
