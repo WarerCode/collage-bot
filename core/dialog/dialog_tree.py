@@ -3,6 +3,8 @@
 являются валидными, а какие - нет; Реализован класс дерева диалога.
 """
 
+import typing
+
 import core.warerobjects.warerobject as warer
 
 
@@ -14,6 +16,10 @@ class DialogTree(warer.WarerObject):
     Родители:
         abc.ABC
         warer.WarerObject
+
+    Аттрибуты класса:
+        DIALOG_TREE: дерево диалога, описывает все возможные сценарии
+        использования бота.
     """
 
     class State:
@@ -23,13 +29,13 @@ class DialogTree(warer.WarerObject):
 
         def __init__(self,
                      name: str,
-                     parent_name: str|None=None,
+                     parent: typing.Optional['DialogTree.State']|None=None,
                      children: list['DialogTree.State']|None=None):
             """
             Инициализирует self.
             """
             self.name = name
-            self.parent_name = parent_name
+            self.parent = parent
             self.children = children or []
 
         def __repr__(self):
@@ -38,7 +44,8 @@ class DialogTree(warer.WarerObject):
             """
             return (f"State("
                     f"name={self.name}, "
-                    f"children={self.children})")
+                    f"parent.name={self.parent.name if self.parent else None}, "
+                    f"len(children)={len(self.children)})")
 
         @property
         def is_nil(self) -> bool:
@@ -47,18 +54,40 @@ class DialogTree(warer.WarerObject):
             """
             return not bool(self.children)
 
-    DIALOG_TREE = State("default", None, [
-        State("load_image", "default",[
-            State("loading", "load_image"),
-            State("tagging", "load_image")
-        ]),
-        State("make_collage", "default",[
-            State("choose_tags", "make_collage"),
-            State("choose_size", "make_collage"),
-            State("choose_effects", "make_collage"),
-        ]),
-        State("delete_data", "default")
-    ])
+    """
+    start
+    ├── load_image
+    │   ├── loading
+    │   └── tagging
+    ├── make_collage
+    │   ├── choose_tags
+    │   ├── choose_size
+    │   └── choose_effects
+    └── delete_data
+    """
+
+    DIALOG_TREE = State("start")
+
+    __LOAD_IMAGE = State("load_image", DIALOG_TREE)
+    __LOADING = State("loading", __LOAD_IMAGE)
+    __TAGGING = State("tagging", __LOAD_IMAGE)
+    __LOAD_IMAGE.children = [
+        __LOADING, __TAGGING
+    ]
+
+    __MAKE_COLLAGE = State("make_collage", DIALOG_TREE)
+    __CHOOSE_TAGS = State("choose_tags", __MAKE_COLLAGE)
+    __CHOOSE_SIZE = State("choose_size", __MAKE_COLLAGE)
+    __CHOOSE_EFFECTS = State("choose_effects", __MAKE_COLLAGE)
+    __MAKE_COLLAGE.children = [
+        __CHOOSE_TAGS, __CHOOSE_SIZE, __CHOOSE_EFFECTS
+    ]
+
+    __DELETE_MY_DATA = State("delete_my_data", DIALOG_TREE)
+
+    DIALOG_TREE.children = [
+        __LOAD_IMAGE, __MAKE_COLLAGE, __DELETE_MY_DATA
+    ]
 
     def __init__(self):
         """
@@ -67,17 +96,57 @@ class DialogTree(warer.WarerObject):
         super().__init__()
 
     @staticmethod
+    def next_state(curr: State) -> State:
+        """
+        Функция возвращает следующий этап диалога
+        между пользователем и ботом
+        """
+        if curr == DialogTree.DIALOG_TREE:
+            """
+            В случае неоднозначного перехода к
+            следующему состоянию требуется выбор
+            пользователя.
+            """
+            return DialogTree.DIALOG_TREE
+
+        if bool(curr.children):
+            return curr.children[0]
+
+        steps = curr.parent.children
+        for i, step in enumerate(steps):
+            if step == curr and i + 1 != len(steps):
+                return steps[i+1]
+
+        return DialogTree.DIALOG_TREE
+
+    @staticmethod
     def is_valid_step(last: State, curr: State) -> bool:
         """
         Проверяет валидность перехода между состояниями.
         Не допускается переход вверх по дереву, а так же
         пропуск узлов, дочерних к одному и тому же состоянию.
         """
-        return curr in last.children
+        if last == DialogTree.DIALOG_TREE:
+            return curr in last.children
+        return curr == DialogTree.next_state(last)
 
-#TODO: написать рекурсивную функцию поиска следующего шага диалога
-#TODO: закончить is_valid_step  @DanilaEfimov
 
 
 if __name__ == "__main__":
     help(DialogTree)
+
+    print("пример использования:")
+    states = [v for k,v in DialogTree.__dict__.items()
+              if isinstance(v, DialogTree.State)]
+    for state in states:
+        print(f"следующий шаг для {state}\t=\n\t\t"
+              f"{DialogTree.next_state(state)}")
+    print()
+
+    print("проверки переходов между состояниями на валидность:")
+    import random
+    for _ in range(4):
+        a, b = random.randint(0, len(states)-1), random.randint(0, len(states)-1)
+        last, curr = states[a], states[b]
+        print(f"переход от {last} в {curr}:\n\t\t"
+              f"{DialogTree.is_valid_step(last, curr)}")
