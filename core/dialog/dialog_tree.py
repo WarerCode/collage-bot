@@ -45,7 +45,7 @@ class DialogTree(warer.WarerObject):
             return (f"State("
                     f"name={self.name}, "
                     f"parent.name={self.parent.name if self.parent else None}, "
-                    f"len(children)={len(self.children)})")
+                    f"children={[child.name for child in self.children]})")
 
         @property
         def is_nil(self) -> bool:
@@ -145,7 +145,7 @@ if __name__ == "__main__":
 
     print("проверки переходов между состояниями на валидность:")
     import random
-    for _ in range(4):
+    for _ in range(6):
         a, b = random.randint(0, len(states)-1), random.randint(0, len(states)-1)
         last, curr = states[a], states[b]
         print(f"переход от {last} в {curr}:\n\t\t"

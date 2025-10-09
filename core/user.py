@@ -14,8 +14,13 @@ class User(warer.WarerObject):
     
     def __init__(self,
                  info: userinfo.UserInfo,
-                 using_policy: using_policy.UsingPolicy):
+                 policy: using_policy.UsingPolicy):
+        """
+
+        """
         super().__init__()
+        self.info = info
+        self.policy = policy
 
 
 
