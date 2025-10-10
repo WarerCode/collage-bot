@@ -37,7 +37,7 @@ class UsingPolicy(policy.Policy):
         """
         super().__init__()
         self._usertype = usertype.value
-        self.limits = using_limits.UsingLimits(user_type)
+        self.limits = using_limits.UsingLimits(usertype)
 
     def __str__(self):
         """
