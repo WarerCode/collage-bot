@@ -11,6 +11,9 @@ import core.dialog.message as contextMsg
 import core.dialog.dialog_tree as dialog_tree
 import core.user as user
 import core.warerobjects.management.database as database
+import core.warerobjects.politics.using_policy as using_policy
+import core.warerobjects.data.userinfo as userinfo
+import core.warerobjects.politics.using_limits as using_limits
 
 
 class DialogContext(warer.WarerObject):
@@ -33,14 +36,24 @@ class DialogContext(warer.WarerObject):
         self.message = contextMsg.ContextMessage(message)
         self.state = state  # по умолчанию - начало диалога
 
-    def __init_user(self, user_id: int) -> user.User:
+    def __init_user(self, user_id: int, db: database.Database) -> user.User:
         """
         Функция используется один раз при инициализации
         контекста для проверки наличия информации о пользователе
         в базе данных. Инициализирует пользователя.
         """
-        with database.db.get_connection() as conn:
-            pass
+        query, params = database.BaseQueries.select(database.TableNames.USERS, ["user_id", "username", "status"], conditions={"user_id": user_id})
+        user_info = db.fetch_one(query, params)
+
+        if user_info:
+            res_user = user.User(
+                userinfo.UserInfo(user_info.get("user_id"), user_info.get("username")),
+                using_policy.UsingPolicy(user_info.get("status"))
+            )
+        else:
+            res_user = None
+
+        return res_user
 
 
 
