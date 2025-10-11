@@ -1,3 +1,7 @@
+"""
+@JaneeWaterlemonka допиши красивый полный комментарий
+"""
+
 import os
 import sqlite3
 import psycopg2
@@ -10,7 +14,7 @@ import abc
 import core.warerobjects.warerobject as warer
 
 
-dotenv.load_dotenv(r"E:\портфолио студента\материалы\2025 - 2026\Programming\Python\collage bot\config.env")
+dotenv.load_dotenv(r"E:\портфолио студента\материалы\2025 - 2026\Programming\Python\collage bot\dev.env")
 
 class DBTypes(enum.Enum):
     """
@@ -30,16 +34,19 @@ class TableNames(enum.Enum):
     PAYMENTS= "payments"
     SUBSCRIPTION_PLANS= "subscription_plans"
 
+    def __str__(self):
+        return self.value
+
 class TableConfig(abc.ABC):
     """Конфигурация таблиц с информацией о первичных ключах"""
     
     TABLE_PRIMARY_KEYS = {
-        TableNames.USERS.value: "user_id",
-        TableNames.IMAGES.value: "id", 
-        TableNames.TAGS.value: "id",
-        TableNames.IMAGE_TAG_RELATIONS.value: ("image_id", "tag_id"),
-        TableNames.PAYMENTS.value: "id",
-        TableNames.SUBSCRIPTION_PLANS.value: "id",
+        TableNames.USERS: "user_id",
+        TableNames.IMAGES: "id",
+        TableNames.TAGS: "id",
+        TableNames.IMAGE_TAG_RELATIONS: ("image_id", "tag_id"),
+        TableNames.PAYMENTS: "id",
+        TableNames.SUBSCRIPTION_PLANS: "id",
     }
     
     @classmethod
@@ -166,7 +173,9 @@ class BaseQueries(abc.ABC):
         return ", ".join(["%s"] * length)
 
     @classmethod
-    def insert(cls, table_name: TableNames, data: dict) -> tuple[str, list]:
+    def insert(cls,
+               table_name: TableNames,
+               data: dict) -> tuple[str, list]:
         """
         Добавление в таблицу записи.
 
@@ -196,7 +205,10 @@ class BaseQueries(abc.ABC):
         return query, list(data.values())
     
     @classmethod
-    def select(cls, table_name: TableNames, columns: list="*", conditions: dict=None) -> tuple[str, list]:
+    def select(cls,
+               table_name: TableNames,
+               columns: list="*",
+               conditions: dict=None) -> tuple[str, list]:
         """
         Получение данных из таблицы.
 
@@ -223,7 +235,10 @@ class BaseQueries(abc.ABC):
         return query, params
     
     @classmethod
-    def update(cls, table_name: TableNames, data: dict, conditions: dict=None) -> tuple[str, list]:
+    def update(cls,
+               table_name: TableNames,
+               data: dict,
+               conditions: dict=None) -> tuple[str, list]:
         """
         Обновление записей в таблице.
 
@@ -248,7 +263,9 @@ class BaseQueries(abc.ABC):
         return query, params
     
     @classmethod
-    def delete(cls, table_name: TableNames, conditions: dict=None) -> tuple[str, list]:
+    def delete(cls,
+               table_name: TableNames,
+               conditions: dict=None) -> tuple[str, list]:
         """
         Удаление записей из таблицы.
 
@@ -394,11 +411,11 @@ if __name__ == "__main__":
     print()
 
     db = Database(DBTypes.POSTGRESQL,
-              host=os.getenv("DB_HOST"),
+              host=os.getenv("DB_HOST"), 
               database=os.getenv("DB_NAME"),
               user=os.getenv("DB_USER"),
               password=os.getenv("DB_PASSWORD"))
-
+    
     # Очистка перед тестированием
     q, p = BaseQueries.delete(TableNames.TAGS)
     db.execute(q, p)
@@ -424,7 +441,7 @@ if __name__ == "__main__":
     temp_tags = db.fetch_all(q, p)
     print(f"Список тегов, после удаления: {temp_tags}")
     print()
-
+    
 
     print(db.__str__())
     print(db.__repr__())

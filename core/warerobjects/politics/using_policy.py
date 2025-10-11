@@ -37,24 +37,21 @@ class UsingPolicy(policy.Policy):
         """
         super().__init__()
         self._usertype = usertype.value
-        self._limits = using_limits.UsingLimits(user_type)
-        self._notify_policy = None
+        self.limits = using_limits.UsingLimits(usertype)
 
     def __str__(self):
         """
         Строковое представление объекта.
         """
         return (f"UsingPolicy(usertype={self._usertype},"
-                f"limits={self._limits},"
-                f"notify_policy={self._notify_policy})")
+                f"limits={self.limits}")
 
     def __repr__(self):
         """
         Формальное строковое представление объекта.
         """
         return (f"(usertype={self._usertype},"
-                f"limits={self._limits},"
-                f"notify_policy={self._notify_policy})")
+                f"limits={self.limits}")
 
     def to_dict(self):
         """
@@ -62,15 +59,14 @@ class UsingPolicy(policy.Policy):
         """
         return {
             "usertype": self._usertype,
-            "limits": self._limits,
-            "notify_policy": self._notify_policy
+            "limits": self.limits
         }
 
     def get_limits(self):
         """
         Получить текущие лимиты.
         """
-        return self._limits
+        return self.limits
 
 
 
