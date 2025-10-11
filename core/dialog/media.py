@@ -4,7 +4,7 @@
 """
 
 import core.warerobjects.warerobject as warer
-import core.warerobjects.content_types.base_type as basemedia
+import core.warerobjects.content_types.base_type as base_type
 
 
 class Media(warer.WarerObject):
@@ -13,7 +13,7 @@ class Media(warer.WarerObject):
     для ответа. Предоставляет интерфейс контейнера.
     """
 
-    def __init__(self, content: list[basemedia.BaseMediaType]):
+    def __init__(self, content: list[base_type.BaseMediaType]):
         """
         Инициализирует self.
         """

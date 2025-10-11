@@ -27,7 +27,7 @@ class DialogContext(warer.WarerObject):
 
     def __init__(self,
                  message: types.Message,
-                 state: dialog_tree.DialogTree=dialog_tree.DialogTree.DIALOG_TREE):
+                 state: dialog_tree.DialogTree=dialog_tree.DialogTree.DIALOG_ROOT):
         """
         Инициализирует self.
         """

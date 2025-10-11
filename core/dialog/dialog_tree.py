@@ -66,16 +66,16 @@ class DialogTree(warer.WarerObject):
     └── delete_data
     """
 
-    DIALOG_TREE = State("start")
+    DIALOG_ROOT = State("start")
 
-    __LOAD_IMAGE = State("load_image", DIALOG_TREE)
+    __LOAD_IMAGE = State("load_image", DIALOG_ROOT)
     __LOADING = State("loading", __LOAD_IMAGE)
     __TAGGING = State("tagging", __LOAD_IMAGE)
     __LOAD_IMAGE.children = [
         __LOADING, __TAGGING
     ]
 
-    __MAKE_COLLAGE = State("make_collage", DIALOG_TREE)
+    __MAKE_COLLAGE = State("make_collage", DIALOG_ROOT)
     __CHOOSE_TAGS = State("choose_tags", __MAKE_COLLAGE)
     __CHOOSE_SIZE = State("choose_size", __MAKE_COLLAGE)
     __CHOOSE_EFFECTS = State("choose_effects", __MAKE_COLLAGE)
@@ -83,9 +83,9 @@ class DialogTree(warer.WarerObject):
         __CHOOSE_TAGS, __CHOOSE_SIZE, __CHOOSE_EFFECTS
     ]
 
-    __DELETE_MY_DATA = State("delete_my_data", DIALOG_TREE)
+    __DELETE_MY_DATA = State("delete_my_data", DIALOG_ROOT)
 
-    DIALOG_TREE.children = [
+    DIALOG_ROOT.children = [
         __LOAD_IMAGE, __MAKE_COLLAGE, __DELETE_MY_DATA
     ]
 
@@ -101,13 +101,13 @@ class DialogTree(warer.WarerObject):
         Функция возвращает следующий этап диалога
         между пользователем и ботом
         """
-        if curr == DialogTree.DIALOG_TREE:
+        if curr == DialogTree.DIALOG_ROOT:
             """
             В случае неоднозначного перехода к
             следующему состоянию требуется выбор
             пользователя.
             """
-            return DialogTree.DIALOG_TREE
+            return DialogTree.DIALOG_ROOT
 
         if bool(curr.children):
             return curr.children[0]
@@ -117,7 +117,7 @@ class DialogTree(warer.WarerObject):
             if step == curr and i + 1 != len(steps):
                 return steps[i+1]
 
-        return DialogTree.DIALOG_TREE
+        return DialogTree.DIALOG_ROOT
 
     @staticmethod
     def is_valid_step(last: State, curr: State) -> bool:
@@ -126,7 +126,7 @@ class DialogTree(warer.WarerObject):
         Не допускается переход вверх по дереву, а так же
         пропуск узлов, дочерних к одному и тому же состоянию.
         """
-        if last == DialogTree.DIALOG_TREE:
+        if last == DialogTree.DIALOG_ROOT:
             return curr in last.children
         return curr == DialogTree.next_state(last)
 
