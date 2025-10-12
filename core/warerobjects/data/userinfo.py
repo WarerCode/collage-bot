@@ -95,9 +95,10 @@ class UserInfo(warer.WarerObject):
 
     def update_timestamp(self):
         """
-
+        Метод обновления времени пользования бота.
         """
-        self.__setattr__(UserFields.UPDATED_AT.value, time.time())
+        #TODO: @JaneeWatermelonka
+        pass
 
 
 
@@ -124,5 +125,5 @@ if __name__ == "__main__":
     print()
 
     print("Сбросим состояние объекта:")
-    userinfo.__reset_state()
+    userinfo.__re
     print(userinfo)

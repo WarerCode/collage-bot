@@ -109,9 +109,9 @@ class User(warer.WarerObject):
 
     def update_timestamp(self):
         """
-
+        Метод обновления времени пользования бота.
         """
-        pass
+        self.info.update_timestamp()
 
     def save_to_db(self):
         """
