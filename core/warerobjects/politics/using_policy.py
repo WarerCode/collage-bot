@@ -36,21 +36,21 @@ class UsingPolicy(policy.Policy):
             usertype (UserType): тип пользователя, определяющий права и лимиты.
         """
         super().__init__()
-        self._usertype = usertype.value
+        self.usertype = usertype.value
         self.limits = using_limits.UsingLimits(usertype)
 
     def __str__(self):
         """
         Строковое представление объекта.
         """
-        return (f"UsingPolicy(usertype={self._usertype},"
+        return (f"UsingPolicy(usertype={self.usertype},"
                 f"limits={self.limits}")
 
     def __repr__(self):
         """
         Формальное строковое представление объекта.
         """
-        return (f"(usertype={self._usertype},"
+        return (f"(usertype={self.usertype},"
                 f"limits={self.limits}")
 
     def to_dict(self):
@@ -58,7 +58,7 @@ class UsingPolicy(policy.Policy):
         Представление объекта в виде словаря.
         """
         return {
-            "usertype": self._usertype,
+            "usertype": self.usertype,
             "limits": self.limits
         }
 

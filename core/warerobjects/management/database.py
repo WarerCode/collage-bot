@@ -12,6 +12,7 @@ import dotenv
 import abc
 
 import core.warerobjects.warerobject as warer
+import core.warerobjects.data.userinfo as userinfo
 
 
 dotenv.load_dotenv(r"E:\портфолио студента\материалы\2025 - 2026\Programming\Python\collage bot\dev.env")
@@ -41,7 +42,7 @@ class TableConfig(abc.ABC):
     """Конфигурация таблиц с информацией о первичных ключах"""
     
     TABLE_PRIMARY_KEYS = {
-        TableNames.USERS: "user_id",
+        TableNames.USERS: userinfo.UserFields.USER_ID,
         TableNames.IMAGES: "id",
         TableNames.TAGS: "id",
         TableNames.IMAGE_TAG_RELATIONS: ("image_id", "tag_id"),
@@ -69,18 +70,18 @@ class TableQueries(enum.Enum):
     """
     CREATE_TABLE_USERS = f"""
         CREATE TABLE IF NOT EXISTS {TableNames.USERS.value} (
-            user_id INTEGER PRIMARY KEY,
-            username VARCHAR(100),
-            is_bot BOOLEAN DEFAULT FALSE,
-            status VARCHAR(100),
-            first_name VARCHAR(100),
-            last_name VARCHAR(100),
-            language_code VARCHAR(10),
-            is_premium BOOLEAN DEFAULT FALSE,
-            free_collages_remaining INTEGER DEFAULT %s,
-            last_collage_date DATE,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            {userinfo.UserFields.USER_ID} INTEGER PRIMARY KEY,
+            {userinfo.UserFields.USERNAME} VARCHAR(100),
+            {userinfo.UserFields.IS_BOT} BOOLEAN DEFAULT FALSE,
+            {userinfo.UserFields.STATUS} VARCHAR(100),
+            {userinfo.UserFields.FIRST_NAME} VARCHAR(100),
+            {userinfo.UserFields.LAST_NAME} VARCHAR(100),
+            {userinfo.UserFields.LANGUAGE_CODE} VARCHAR(10),
+            {userinfo.UserFields.IS_PREMIUM} BOOLEAN DEFAULT FALSE,
+            {userinfo.UserFields.FREE_COLLAGES_REMAINING} INTEGER DEFAULT %s,
+            {userinfo.UserFields.LAST_COLLAGE_DATE} DATE,
+            {userinfo.UserFields.UPDATED_AT} TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            {userinfo.UserFields.CREATED_AT} TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """
     CREATE_TABLE_IMAGES = f"""

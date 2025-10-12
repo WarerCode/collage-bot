@@ -51,17 +51,40 @@ class DialogContext(warer.WarerObject):
         """
         query, params = database.BaseQueries.select(
             database.TableNames.USERS,
-            ["user_id", "username", "status"],
-            conditions={"user_id": user_id}
+            [
+                user.UserFields.USER_ID,
+                user.UserFields.USERNAME,
+                user.UserFields.STATUS
+            ],
+            conditions={
+                user.UserFields.USER_ID: user_id
+            }
         )
         user_info = db.fetch_one(query, params)
 
         if user_info:
-            res_user = user.User(
-                userinfo.UserInfo(user_info.get("user_id"), user_info.get("username")),
-                using_policy.UsingPolicy(user_info.get("status"))
+            self.user = user.User(
+                userinfo.UserInfo(
+                    user_info.get(user.UserFields.USER_ID),
+                    user_info.get(user.UserFields.USERNAME)
+                ),
+                using_policy.UsingPolicy(
+                    user_info.get(user.UserFields.USERNAME)
+                )
             )
-            self.user = res_user
+
+    @property
+    def get_user(self):
+        """
+        Метод для оптимизированного доступа к пользователю.
+        """
+        return self.user
+
+    def set_message(self, new_message: types.Message):
+        """
+        Метод для обновления сообщения в текущем диалоге.
+        """
+        self.message = new_message
 
     def __str__(self):
         """

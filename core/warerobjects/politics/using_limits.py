@@ -139,7 +139,13 @@ class UsingLimits(warer.WarerObject):
             user_type (UserType): Тип пользователя.
         """
         super().__init__()
+        self.user_type = user_type
         self.value = UsingLimits.USING_POLITICS_LIMITS[user_type]
+
+    @property
+    def get_user_type(self):
+        """Для быстрого доступа к типу пользователя."""
+        return self.user_type
 
     def __str__(self):
         """
