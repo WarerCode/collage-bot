@@ -6,7 +6,6 @@ import PIL
 import PIL.Image
 import PIL.ImageFilter
 import PIL.ImageEnhance
-import core.warerobjects.politics.size_policy as size_policy
 import core.warerobjects.warerobject as warer
 
 
@@ -122,6 +121,7 @@ class Effects(warer.WarerObject):
     Поля экземпляра:
         Отсутствуют
     """
+
     def __init__(self):
         """
         Инициализация объекта.
@@ -494,43 +494,6 @@ class Effects(warer.WarerObject):
             
             return framed
     
-    @classmethod
-    def apply_effect(cls,
-                     image: PIL.Image.Image,
-                     effect_name: str,
-                     **kwargs: dict) -> PIL.Image.Image:
-        """
-        Применяет эффект по имени из перечислителя EffectNames
-
-        Аргументы:
-            image: исходное изображение
-            effect_name: название эффекта
-            **kwargs: дополнительные параметры для передачи в функцию конкретного эффекта
-        Возвращает:
-            Изображение после применения эффекта
-        """
-        effect_methods = {
-            EffectNames.GRAY.value: cls.apply_grayscale,
-            EffectNames.BLUR.value: cls.apply_blur,
-            EffectNames.NOISE.value: cls.apply_noise,
-            EffectNames.VIGNETTE.value: cls.apply_vignette,
-            
-            EffectNames.VINTAGE_CORE.value: cls.apply_vintage_core,
-            EffectNames.INDIE_CORE.value: cls.apply_indie_core,
-            EffectNames.OLD_MONEY_CORE.value: cls.apply_old_money_core,
-            EffectNames.FAIRY_CORE.value: cls.apply_fairy_core,
-            EffectNames.GOLDEN_HOUR_CORE.value: cls.apply_golden_hour_core,
-            
-            EffectNames.LEAFES_FRAME.value: cls.apply_leafes_frame,
-            EffectNames.PLAIN_FRAME.value: cls.apply_plain_frame,
-            EffectNames.GOTH_FRAME.value: cls.apply_goth_frame,
-        }
-        
-        if effect_name not in effect_methods:
-            raise ValueError(f"Unknown effect: {effect_name}")
-        
-        return effect_methods[effect_name](image, **kwargs)
-    
     def __str__(self):
         """
         Преобразует объект в строку.
@@ -553,30 +516,23 @@ class Effects(warer.WarerObject):
         """
         pass
 
+EFFECT_METHODS = {
+    EffectNames.GRAY.value: Effects.apply_grayscale,
+    EffectNames.BLUR.value: Effects.apply_blur,
+    EffectNames.NOISE.value: Effects.apply_noise,
+    EffectNames.VIGNETTE.value: Effects.apply_vignette,
+    
+    EffectNames.VINTAGE_CORE.value: Effects.apply_vintage_core,
+    EffectNames.INDIE_CORE.value: Effects.apply_indie_core,
+    EffectNames.OLD_MONEY_CORE.value: Effects.apply_old_money_core,
+    EffectNames.FAIRY_CORE.value: Effects.apply_fairy_core,
+    EffectNames.GOLDEN_HOUR_CORE.value: Effects.apply_golden_hour_core,
+    
+    EffectNames.LEAFES_FRAME.value: Effects.apply_leafes_frame,
+    EffectNames.PLAIN_FRAME.value: Effects.apply_plain_frame,
+    EffectNames.GOTH_FRAME.value: Effects.apply_goth_frame,
+}
+
 if __name__ == "__main__":
-    # Пример использования
-    effects = Effects()
-
-    # Загрузка изображений
-    image = PIL.Image.open(os.path.join(ASSETS_ROOT, "test", "effects_test.jpg"))
-    image_1_1 = PIL.Image.open(os.path.join(ASSETS_ROOT, "test", "1_1.jpg"))
-    image_1_2 = PIL.Image.open(os.path.join(ASSETS_ROOT, "test", "1_2.jpg"))
-
-    # Применение одного эффекта
-    for eff in EffectNames:
-        try:
-            new_image = effects.apply_effect(image, eff.value)
-            new_image.save(os.path.join(MEDIA_ROOT, f"{eff.value}.jpg"))
-        except Exception as e:
-            print(e)
-            continue
-
-    # Тест эффектов-рамок
-    one_image = effects.apply_effect(image_1_1, EffectNames.LEAFES_FRAME.value, **{"shape": size_policy.SizePolicy.Size.SQUARE.value})
-    one_image.save(os.path.join(MEDIA_ROOT, f"{EffectNames.LEAFES_FRAME.value}.jpg"))
-
-    one_image = effects.apply_effect(image_1_1, EffectNames.GOTH_FRAME.value, **{"shape": size_policy.SizePolicy.Size.SQUARE.value})
-    one_image.save(os.path.join(MEDIA_ROOT, f"{EffectNames.GOTH_FRAME.value}.jpg"))
-
-    one_image = effects.apply_effect(image, EffectNames.PLAIN_FRAME.value, **{"border_size": 20, "color": (100, 100, 255)})
-    one_image.save(os.path.join(MEDIA_ROOT, f"{EffectNames.PLAIN_FRAME.value}.jpg"))
+    # Пример использования еффектов можно увидеть в core.warerobjects.content_types.image
+    pass

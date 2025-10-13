@@ -29,10 +29,10 @@ class SizePolicy(policy.Policy):
         """
 
         SQUARE = (1,1)
-        HORIZONTAL = (1,2)
-        VERTICAL = (2,1)
-        HOR_PHONE = (9,16)
-        VER_PHONE = (16,9)
+        HORIZONTAL = (2,1)
+        VERTICAL = (1,2)
+        HOR_PHONE = (16,9)
+        VER_PHONE = (9,16)
 
         @property
         def width(self):
