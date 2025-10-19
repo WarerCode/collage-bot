@@ -1,5 +1,9 @@
 """
 Здесь описывается общая структура пользователя бота.
+Реализован CRUD-like интерфейс пользователя:
+создание по информации из бд,
+сохранение в бд.
+см. подробнее в database.py
 """
 
 import telebot.types as types
@@ -31,8 +35,8 @@ class User(warer.WarerObject):
         self.info = info
         self.policy = policy
 
-    @staticmethod
-    def from_message(message: types.Message):
+    @classmethod
+    def from_message(cls, message: types.Message) -> 'User':
         """
         Возвращает дефолтного пользователя по сообщению.
         Не обращается к базе данных. Используется, когда
@@ -47,7 +51,7 @@ class User(warer.WarerObject):
             user_fields.USER_ID.value: tg_user.id,
             user_fields.USERNAME.value: tg_user.username,
             user_fields.IS_BOT.value: tg_user.is_bot,
-            user_fields.STATUS.value: None,
+            user_fields.STATUS.value: using_limits.UserType.DEFAULT,
             user_fields.FIRST_NAME.value: tg_user.first_name,
             user_fields.LAST_NAME.value: tg_user.last_name,
             user_fields.LANGUAGE_CODE.value: tg_user.language_code,
@@ -117,6 +121,19 @@ class User(warer.WarerObject):
         """
         Применяется в конце диалога для сохранения/обновления
         информации о пользователе.
+        """
+        #TODO: @JaneeWatermelonka
+        pass
+
+    @classmethod
+    def read_from_db(cls, id) -> 'User':
+        """
+        Метод для создания пользователя по его айдишнику.
+        Информация о пользователе читается из базы.
+
+        Параметры:
+            id (PRIMARY_KEY~int): сигнатура не специфицирована,
+            подразумевается первичный ключ отношения пользователей.
         """
         #TODO: @JaneeWatermelonka
         pass

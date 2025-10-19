@@ -6,7 +6,6 @@
 """
 
 import enum
-import time
 
 import core.warerobjects.warerobject as warer
 
@@ -18,7 +17,7 @@ class UserFields(enum.Enum):
     USER_ID = "user_id"
     USERNAME = "username"
     IS_BOT = "is_bot"
-    STATUS = "status"
+    STATUS = "status"   # здесь имеется ввиду статус пользователя бота.
     FIRST_NAME = "first_name"
     LAST_NAME = "last_name"
     LANGUAGE_CODE = "language_code"
@@ -125,5 +124,4 @@ if __name__ == "__main__":
     print()
 
     print("Сбросим состояние объекта:")
-    userinfo.__re
     print(userinfo)
