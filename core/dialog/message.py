@@ -3,62 +3,108 @@
 Предоставляет интерфейс доступа к главным полям и мультимедия
 """
 
+import enum
 import telebot.types as types
 
 import core.warerobjects.warerobject as warer
 import core.dialog.media as media
-import core.warerobjects.politics.content_policy as content_policy
+
+
+class MessageFields(enum.Enum):
+    """
+    Enum с основными полями объекта сообщения Telegram (telebot.types.Message),
+    которые часто используются при обработке сообщений в боте.
+    """
+    MESSAGE_ID = 'message_id'
+    FROM_USER = 'from_user'
+    CHAT = 'chat'
+    DATE = 'date'
+    TEXT = 'text'
+    CAPTION = 'caption'  # Подпись к медиа
+    PHOTO = 'photo'
+    VIDEO = 'video'
+    AUDIO = 'audio'
+    DOCUMENT = 'document'
 
 
 class ContextMessage(warer.WarerObject):
     """
+    Класс контекста, необходимого для сборки ответа юзеру.
+    Хранит сообщение от пользователя и необходимый медиа контент.
 
+    Родители:
+        warer.WarerObject
+        abc.ABC
+
+    Атрибут экземпляра:
+        reply_to_message (types.Message) - последнее сообщение от пользователя.
+        content (list[media.Media]) - необходимые медиа для сборки ответа.
     """
 
-    def __init__(self, message: types.Message):
+    def __init__(self,
+                 message: types.Message,
+                 content: list[media.Media]=None):
         """
-
+        Инициализирует self.
         """
         super().__init__()
-        self.message = message
+        self.reply_to_message = message
+        self.content = [] if not content else content
 
     @property
-    def text(self):
+    def user_text(self):
         """
-
+        Текст сообщения пользователя.
         """
-        return self.message.text
+        return self.reply_to_message.text
 
     def __str__(self):
         """
-
+        Человекочитаемое представление объекта.
         """
-        return f"Message(message={self.message})"
+        return f"ContextMessage(reply_to_message={self.reply_to_message})"
 
     def __repr__(self):
         """
-
+        Строковое представление для отладки.
         """
-        return f"(message={self.message})"
+        return f"(reply_to_message={self.reply_to_message})"
 
     def to_dict(self):
         """
-
+        Сериализация объекта в словарь.
         """
         return {
-            "message" : self.message,
-            "hints" : self.hints
+            "reply_to_message": self.reply_to_message,
+            "hints": self.hints
         }
-
-    def setup_media(self,
-                    media: media.Media,
-                    policy: content_policy.ContentPolicy):
-        """
-
-        """
-        pass
 
 
 
 if __name__ == "__main__":
-    ...
+    from telebot.types import Message, User, Chat
+
+    # Создаем имитацию объекта User
+    fake_user = User(id=12345, is_bot=False, first_name="Иван", last_name="Иванов", username="ivan_ivanov")
+
+    # Создаем имитацию объекта Chat
+    fake_chat = Chat(id=67890, type="private")
+
+    # Создаем имитацию объекта Message
+    fake_message = Message(message_id=1,
+                           from_user=fake_user,
+                           chat=fake_chat,
+                           date=1234567890,
+                           content_type=None,
+                           options={},
+                           json_string=None)
+    fake_message.text = "Hello, World!"
+
+    # Создаем объект ContextMessage
+    context = ContextMessage(message=fake_message)
+
+    # Выводим текст из сообщения
+    print("Текст пользователя:", context.user_text)
+
+    # Выводим словарь представления
+    print("Словарь объекта:", context.to_dict())

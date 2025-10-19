@@ -36,10 +36,10 @@ class MetaData(warer.WarerObject):
         Может быть полезно при чтении данных.
         """
 
-        STR_ONLY = "string_only"
-        INT_ONLY = "integer_only"
-        KEY_ONLY = "keys_only"
-        NO_SPECIFIC = "general"
+        STR_ONLY = "str_only"
+        INT_ONLY = "int_only"
+        KEY_ONLY = "key_only"
+        NO_SPECIFIC = "no_specific"
 
     def __init__(self,
                  flag: Type = Type.NO_SPECIFIC):

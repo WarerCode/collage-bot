@@ -4,9 +4,43 @@
 Класс использует подсказки (hints) из объекта MetaData и предоставляет
 методы для строкового представления и преобразования в словарь.
 """
+
 import enum
+
 import core.warerobjects.politics.basepolicy as policy
 import core.warerobjects.data.metadata as metadata
+
+
+class Hints(enum.Enum):
+    """
+
+    """
+
+    class CaptionFormats(enum.Enum):
+        """
+
+        """
+        HTML = "html",
+        MARKED_DOWN = "marked_down",
+        NO_FORMAT = "no_format"
+
+    HIDDEN_IMAGE = "hidden_image",
+    NO_CAPTION = "no_caption",
+    CAPTION_UPPER_IMAGE = "caption_upper_image",
+    IMAGE_PATHS = "image_paths",
+    CAPTION_FORMAT = "caption_format"
+
+    def __str__(self):
+        """
+
+        """
+        return self.value
+
+# триггер - величина, имеющая два значения
+TRIGGERS = {
+    Hints.HIDDEN_IMAGE: "has_spoiler",
+    Hints.NO_CAPTION: Hints.NO_CAPTION.value
+}
 
 
 class ContentPolicy(policy.Policy):
@@ -25,25 +59,6 @@ class ContentPolicy(policy.Policy):
     """
 
     MediaData = metadata.MetaData
-
-    class MediaHints(enum.Enum):
-        # Общие подсказки
-        TEXT_POSITION = "text_position"
-        
-        # Подсказки для изображений
-        IMAGE_HIDE = "image_hide"
-        IMAGE_COMPRESS = "image_compress"
-        IMAGE_SIZE = "image_size"
-        
-        # Подсказки для текста
-        TEXT_FORMAT = "text_format"
-        TEXT_MAX_LENGTH = "text_max_length"
-        TEXT_LINK = "text_link"
-        
-        # Подсказки для GIF
-        
-        # Подсказки для документов
-
 
     def __init__(self, media_data: MediaData):
         """
@@ -77,6 +92,33 @@ class ContentPolicy(policy.Policy):
         """
         return dict(self.data)  # копия словаря hints
 
+    def __getitem__(self, item):
+        """
+
+        """
+        return self.data.get(item)
+
 
 if __name__ == "__main__":
     help(ContentPolicy)
+
+    data = MetaData()
+    data.set_hint(Hints.HIDDEN_IMAGE, False)
+    data.set_hint(Hints.CAPTION_UPPER_IMAGE, True)
+    data.set_hint(Hints.IMAGE_PATHS, [
+        "some_long_path.png","some_long_path_1.png"
+    ])
+    data.set_hint(Hints.CAPTION_FORMAT, Hints.CaptionFormats.HTML)
+    policy = ContentPolicy(data)
+
+    # ContentPolicy(
+    #   "hidden_image": False,
+    #   "caption_upper_image": True,
+    #   "image_paths": [
+    #       "some_long_path.png",
+    #       "some_long_path_1.png"
+    #       ]
+    #   "caption_format": CaptionFormats.HTML
+    # )
+
+    print(policy)
