@@ -1,12 +1,13 @@
 """
-
+Здесь описаны служебные перечислители для метаинформации о медиа файлах
+и поддерживаемых типов медиа-контента.
 """
 
 import enum
 
 class MediaHints(enum.Enum):
     """
-
+    Перечислитель для значений метаполей.
     """
 
     COUNT = "count"
@@ -15,7 +16,7 @@ class MediaHints(enum.Enum):
 
 class MediaType(enum.Enum):
     """
-
+    Перечислитель для поддерживаемых типов медиа-данных.
     """
 
     PHOTO = "photo"
@@ -26,4 +27,5 @@ class MediaType(enum.Enum):
 
 
 if __name__ == "__main__":
-    pass
+    help(MediaHints)
+    help(MediaType)
