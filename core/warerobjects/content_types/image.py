@@ -8,10 +8,6 @@ import core.warerobjects.content_types.base_type as base_type
 import core.warerobjects.politics.size_policy as size_policy
 import core.warerobjects.content_types.meta.effects as effects
 
-dotenv.load_dotenv("dev.env")
-MEDIA_ROOT = os.getenv("MEDIA_ROOT")
-ASSETS_ROOT = os.getenv("ASSETS_ROOT")
-
 class Image(base_type.BaseMediaType):
     """
     Класс описывающий изображение как медиа-объект.
@@ -267,6 +263,10 @@ class Image(base_type.BaseMediaType):
 
 if __name__ == "__main__":
     print("Пример использования класса Image:")
+
+    dotenv.load_dotenv("dev.env")
+    MEDIA_ROOT = os.getenv("MEDIA_ROOT")
+    ASSETS_ROOT = os.getenv("ASSETS_ROOT")
 
     # Создание изображения из файла
     try:

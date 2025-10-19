@@ -54,6 +54,19 @@ class SizePolicy(policy.Policy):
             Возвращает отношение ширины к высоте.
             """
             return self.value[0] / self.value[1]
+        
+        @property
+        def scaler(self):
+            """
+            Возвращает коэффициент умножения.
+            """
+            scalers = [1500, 750, 100]
+            for scale in scalers:
+                new_width = self.value[0]*scale
+                new_right = self.value[1]*scale
+                if max(new_width, new_right) < 2000:
+                    return scale
+            return scalers[-1]
 
         @property
         def normalized(self):
@@ -68,6 +81,26 @@ class SizePolicy(policy.Policy):
         """
         super().__init__()
         self._size = mode
+
+    @property
+    def size(self):
+        """
+        Свойство-getter размера изображения.
+
+        Возвращает:
+            Size: элемент перечислителя размера
+        """
+        return self._size
+    
+    @size.setter
+    def size(self, value: Size):
+        """
+        Свойство-setter для объекта изображения.
+
+        Аргументы:
+            value (Size): новый элемент перечислителя размера
+        """
+        self._size = value
 
     def __str__(self):
         """
