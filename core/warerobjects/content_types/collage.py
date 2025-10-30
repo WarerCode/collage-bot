@@ -1,9 +1,11 @@
 import math
 import os
+import time
 import PIL.Image
 import typing
 import dotenv
 import pathlib
+import random
 
 import core.warerobjects.content_types.base_type as base_type
 import core.warerobjects.politics.size_policy as size_policy
@@ -15,28 +17,30 @@ class Collage(content_image.Image):
     Класс описывающий изображение как медиа-объект.
 
     Атрибуты экземпляра:
+        _images: набор изображений типа content_image.Image
         _image: объект изображения PIL
         _file_path: путь к файлу изображения (если загружено из файла)
     """
 
     def __init__(self, image_path: str=None, image: PIL.Image.Image=None, list_of_images: list[content_image.Image] = None):
         """
-        Инициализирует объект изображения
+        Инициализирует объект коллажа
 
         Параметры:
             image_path (str): путь к файлу изображения
             image (PIL.Image.Image): объект изображения PIL
+            list_of_images (list): набор изображений
         """
         super().__init__(image_path=image_path, image=image)
         self._images = [] if list_of_images == None else list_of_images
 
-    def create_collage(self, size_policy: size_policy.SizePolicy, effects: list[effects.EffectNames]=None) -> content_image.Image:
+    def create_collage(self, size_policy: size_policy.SizePolicy, effects_data: list[dict]=None) -> content_image.Image:
         """
         Создает коллаж из списка изображений.
 
         Аргументы:
-            effects (list): список эффектов (пока не используется)
             size_policy (SizePolicy): политика размера и соотношения сторон
+            effects_data (list): список параметров эффектов (название эффекта и параметры)
 
         Возвращает:
             Image: объект изображения коллажа
@@ -46,7 +50,6 @@ class Collage(content_image.Image):
 
         # Получаем соотношение сторон из size_policy
         aspect_ratio = size_policy.size.aspect_ratio
-        print(aspect_ratio)
         
         # Определяем оптимальное расположение изображений
         rows, cols = self._calculate_grid_layout(len(self._images), aspect_ratio)
@@ -55,7 +58,7 @@ class Collage(content_image.Image):
 
         canvas_size = (size_scaler*size_policy.size.value[0], size_scaler*size_policy.size.value[1])
 
-        cell_size = (canvas_size[0] // cols, canvas_size[1] // rows)
+        cell_size = (math.ceil(canvas_size[0] / cols), math.ceil(canvas_size[1] / rows))
         
         # Подготавливаем изображения
         prepared_images = self._prepare_images_for_collage(cell_size)
@@ -64,9 +67,22 @@ class Collage(content_image.Image):
         collage_canvas = PIL.Image.new('RGB', canvas_size, 'white')
         
         # Размещаем изображения на холсте
-        final_collage = self._arrange_images_on_canvas(collage_canvas, prepared_images, rows, cols)
+        final_collage = self._arrange_images_on_canvas(collage_canvas, prepared_images, rows, cols, k=1.2)
+        final_collage = content_image.Image(image=final_collage)
+
+        if effects_data != None:
+            for data in effects_data:
+                effect = data.get("effect")
+                kwargs = data.get("kwargs")
+                if effect != None:
+                    if kwargs != None:
+                        final_collage = final_collage.apply_effect(effect_name=effect, **kwargs)
+                    else:
+                        final_collage = final_collage.apply_effect(effect_name=effect)
+
+        self.image = final_collage.image
         
-        return content_image.Image(image=final_collage)
+        return final_collage
 
     def _calculate_grid_layout(self, image_count: int, aspect_ratio: float) -> tuple[int, int]:
         """
@@ -83,34 +99,14 @@ class Collage(content_image.Image):
             return 0, 0
             
         # Начинаем с квадратного расположения
-        cols = math.ceil(math.sqrt(image_count))
-        rows = math.ceil(image_count / cols)
-
-        print(cols)
-        print(rows)
+        cols = math.floor(math.sqrt(image_count))
+        rows = image_count // cols
         
         # Корректируем с учетом соотношения сторон
         current_ratio = cols / rows
         
-        if current_ratio < aspect_ratio:
-            # Нужно больше столбцов для более широкого формата
-            if rows*cols > image_count:
-                rows -= 1
-            else:
-                while cols / rows < aspect_ratio and cols * rows >= image_count:
-                    cols += 1
-                    rows = math.ceil(image_count / cols)
-        else:
-            # Нужно больше строк для более высокого формата
-            if rows*cols > image_count:
-                cols -= 1
-            else:
-                while cols / rows > aspect_ratio and cols * rows >= image_count:
-                    rows += 1
-                    cols = math.ceil(image_count / rows)
-
-        print(cols)
-        print(rows)
+        if abs(current_ratio - aspect_ratio) > 0.5:
+            cols, rows = rows, cols
         
         return rows, cols
 
@@ -119,9 +115,7 @@ class Collage(content_image.Image):
         Подготавливает изображения для коллажа (изменяет размер).
         
         Аргументы:
-            rows (int): количество строк в сетке
-            cols (int): количество столбцов в сетке
-            aspect_ratio (float): соотношение сторон коллажа
+            cell_size (tuple): размеры ячейки в пикселях
             
         Возвращает:
             list: список подготовленных изображений PIL
@@ -144,8 +138,7 @@ class Collage(content_image.Image):
         
         Аргументы:
             image (PIL.Image.Image): исходное изображение
-            target_width (int): целевая ширина
-            target_height (int): целевая высота
+            cell_size (tuple): размеры ячейки в пикселях
             
         Возвращает:
             PIL.Image.Image: изображение с измененным размером
@@ -157,31 +150,31 @@ class Collage(content_image.Image):
         if img_ratio > cell_ratio:
             # Изображение шире целевого - обрезаем по бокам
             new_height = cell_size[1]
-            new_width = int(new_height * img_ratio)
+            new_width = math.ceil(new_height * img_ratio)
             resized = image.resize((new_width, new_height), PIL.Image.Resampling.LANCZOS)
             
             # Обрезаем по центру
             left = (new_width - cell_size[0]) // 2
-            top = cell_size[1]
+            top = new_height
             right = left + cell_size[0]
             bottom = 0
             return resized.crop((left, bottom, right, top))
         else:
             # Изображение выше целевого - обрезаем сверху и снизу
             new_width = cell_size[0]
-            new_height = int(new_width / img_ratio)
+            new_height = math.ceil(new_width / img_ratio)
             resized = image.resize((new_width, new_height), PIL.Image.Resampling.LANCZOS)
             
             # Обрезаем по центру
             left = 0
             bottom = (new_height - cell_size[1]) // 2
-            right = cell_size[0]
+            right = new_width
             top = bottom + cell_size[1]
             return resized.crop((left, bottom, right, top))
 
     def _arrange_images_on_canvas(self, canvas: PIL.Image.Image,
                                  prepared_images: list[PIL.Image.Image],
-                                 rows: int, cols: int) -> PIL.Image.Image:
+                                 rows: int, cols: int, k: float=1.1, shuffle: bool=True) -> PIL.Image.Image:
         """
         Размещает изображения на холсте.
         
@@ -190,6 +183,8 @@ class Collage(content_image.Image):
             prepared_images (list): список подготовленных изображений
             rows (int): количество строк
             cols (int): количество столбцов
+            k (float): коэффициент масштабирования отдельной фотографии
+            shuffle (bool): нужно ли перемешивать фотографии
             
         Возвращает:
             PIL.Image.Image: готовый коллаж
@@ -200,23 +195,29 @@ class Collage(content_image.Image):
         result = canvas.copy()
         cell_width = prepared_images[0].width
         cell_height = prepared_images[0].height
-        
-        # Вычисляем отступы для центрирования
-        total_used_width = cell_width * cols
-        total_used_height = cell_height * rows
-        offset_x = (canvas.width - total_used_width) // 2
-        offset_y = (canvas.height - total_used_height) // 2
+
+        if shuffle:
+            random.shuffle(prepared_images)
+
+        prepared_images = prepared_images[:rows * cols]
+        indexes = list(range(0, len(prepared_images)))
+        random.shuffle(indexes)
         
         # Размещаем изображения на холсте
-        for i, img in enumerate(prepared_images):
-            if i >= rows * cols:
-                break  # Не размещаем больше, чем есть ячеек
-                
+        for i in indexes:
+            img = prepared_images[i]
+
             row = i // cols
             col = i % cols
             
-            x = offset_x + col * cell_width
-            y = offset_y + row * cell_height
+            x = col * cell_width
+            y = row * cell_height
+
+            if random.randint(0, 1) == 1:
+                img = content_image.Image(image=img).scale(k).image
+
+                x -= (img.width - cell_width) // 2
+                y -= (img.height - cell_height) // 2
             
             result.paste(img, (x, y))
         
@@ -248,27 +249,19 @@ class Collage(content_image.Image):
         return len(self._images)
 
     def __str__(self):
-        if self._image:
-            return f"Image({self.width}x{self.height}, {self.format}, {self.mode})"
-        return "Image(empty)"
+        if self._images:
+            return f"Collage(images_count={self.images_count})"
+        return "Collage(empty)"
 
     def __repr__(self):
         return self.__str__()
 
     def to_dict(self) -> typing.Dict[str, typing.Any]:
-        """
-        Возвращает представление объекта в виде словаря.
-
-        Возвращает:
-            dict: словарь с информацией об изображении
-        """
         return {
-            "width": self.width,
-            "height": self.height,
-            "size": self.size,
-            "format": self.format,
-            "mode": self.mode,
-            "file_path": self._file_path
+            "count": self.images_count,
+            "images": [
+                image.to_dict() for image in self._images
+            ],
         }
     
 if __name__ == "__main__":
@@ -283,8 +276,25 @@ if __name__ == "__main__":
     for i in range(10):
         collage.add_image(content_image.Image(image_path=os.path.join(ASSETS_ROOT, "test/collage", f"{i+1}.jpg")))
 
+    print(collage)
+    print(collage.to_dict())
+
     for size in size_policy.SizePolicy.Size:
         test_size_policy = size_policy.SizePolicy(size)
 
         collage_image = collage.create_collage(size_policy=test_size_policy)
-        collage_image.save(os.path.join(MEDIA_ROOT, "collage", f"collage_{size}.jpg"))
+        collage_image.save(os.path.join(MEDIA_ROOT, "collage/sizes", f"collage_{size.name}.jpg"))
+
+    test_size_policy = size_policy.SizePolicy(size_policy.SizePolicy.Size.SQUARE)
+
+    for effect_name in effects.EffectNames:
+        print(effect_name)
+        old_time = time.time()
+        collage_image = collage.create_collage(
+            size_policy=test_size_policy, 
+            effects_data=[{"effect": effect_name, "kwargs": {"shape": test_size_policy.size.value}}]
+        )
+        print(time.time() - old_time)
+        collage_image.save(os.path.join(MEDIA_ROOT, "collage/effects", f"collage_{effect_name.name}.jpg"))
+
+    

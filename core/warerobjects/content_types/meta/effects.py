@@ -240,7 +240,7 @@ class Effects(warer.WarerObject):
 
     # Main Effects
     @staticmethod
-    def apply_grayscale(image: PIL.Image.Image) -> PIL.Image.Image:
+    def apply_grayscale(image: PIL.Image.Image, **kwargs) -> PIL.Image.Image:
         """
         Применяет черно-белый фильтр на изображение
 
@@ -252,7 +252,7 @@ class Effects(warer.WarerObject):
         return image.convert('L').convert('RGB')
     
     @staticmethod
-    def apply_blur(image: PIL.Image.Image, radius: int = 1.5) -> PIL.Image.Image:
+    def apply_blur(image: PIL.Image.Image, radius: int = 1.5, **kwargs) -> PIL.Image.Image:
         """
         Применяет размытие на изображение
 
@@ -267,7 +267,7 @@ class Effects(warer.WarerObject):
         return image.filter(PIL.ImageFilter.GaussianBlur(radius))
     
     @staticmethod
-    def apply_noise(image: PIL.Image.Image, intensity: float = 0.05) -> PIL.Image.Image:
+    def apply_noise(image: PIL.Image.Image, intensity: float = 0.05, **kwargs) -> PIL.Image.Image:
         """
         Применяет шум на изображение
 
@@ -285,7 +285,7 @@ class Effects(warer.WarerObject):
         return PIL.Image.fromarray(noisy_array)
     
     @staticmethod
-    def apply_vignette(image: PIL.Image.Image, intensity: float = 0.8) -> PIL.Image.Image:
+    def apply_vignette(image: PIL.Image.Image, intensity: float = 0.7, **kwargs) -> PIL.Image.Image:
         """
         Применяет виньетирование (затемнение краев) на изображение
 
@@ -297,23 +297,35 @@ class Effects(warer.WarerObject):
         Возвращает:
             Изображение после применения эффекта
         """
-        width, height = image.size
-        x_center, y_center = width // 2, height // 2
-        max_dist = np.sqrt(x_center**2 + y_center**2)
+        # Конвертируем изображение в массив numpy
+        img_array = np.array(image)
         
-        vignette = PIL.Image.new('L', (width, height))
-        for x in range(width):
-            for y in range(height):
-                dist = np.sqrt((x - x_center)**2 + (y - y_center)**2)
-                factor = 1 - (dist / max_dist) * intensity
-                vignette.putpixel((x, y), int(255 * factor))
+        # Создаем координатные сетки
+        height, width = img_array.shape[:2]
+        x = np.linspace(-1, 1, width)
+        y = np.linspace(-1, 1, height)
+        X, Y = np.meshgrid(x, y)
         
-        return PIL.Image.composite(image, PIL.Image.new('RGB', image.size, 'black'), vignette)
+        # Вычисляем расстояния от центра
+        dist = np.sqrt(X**2 + Y**2)
+        
+        # Создаем маску виньетирования
+        mask = 1 - dist * intensity
+        mask = np.clip(mask, 0, 1)
+        
+        # Применяем маску к каждому каналу
+        if len(img_array.shape) == 3:  # RGB изображение
+            mask = mask[:, :, np.newaxis]  # Добавляем dimension для broadcasting
+            result_array = (img_array * mask).astype(np.uint8)
+        else:  # Grayscale изображение
+            result_array = (img_array * mask).astype(np.uint8)
+        
+        return PIL.Image.fromarray(result_array)
     
     # Core Effects
 
     @staticmethod
-    def apply_vintage_core(image: PIL.Image.Image) -> PIL.Image.Image:
+    def apply_vintage_core(image: PIL.Image.Image, **kwargs) -> PIL.Image.Image:
         """
         Винтажный эффект (Vintage Core)
 
@@ -327,10 +339,10 @@ class Effects(warer.WarerObject):
         result = Effects.adjust_saturation(result, 0.8)
         result = Effects.adjust_contrast(result, 1.1)
         result = Effects.apply_noise(result, 0.02)
-        return Effects.apply_vignette(result, 0.2)
+        return Effects.apply_vignette(result, 0.3)
 
     @staticmethod
-    def apply_indie_core(image: PIL.Image.Image) -> PIL.Image.Image:
+    def apply_indie_core(image: PIL.Image.Image, **kwargs) -> PIL.Image.Image:
         """
         Яркие насыщенные цвета (Indie Core)
 
@@ -347,7 +359,7 @@ class Effects(warer.WarerObject):
         return result
 
     @staticmethod
-    def apply_old_money_core(image: PIL.Image.Image) -> PIL.Image.Image:
+    def apply_old_money_core(image: PIL.Image.Image, **kwargs) -> PIL.Image.Image:
         """
         Богатые глубокие тона (Old Money Core)
 
@@ -364,7 +376,7 @@ class Effects(warer.WarerObject):
         return result
 
     @staticmethod
-    def apply_fairy_core(image: PIL.Image.Image) -> PIL.Image.Image:
+    def apply_fairy_core(image: PIL.Image.Image, **kwargs) -> PIL.Image.Image:
         """
         Мягкие пастельные тона с легким свечением (Fairy Core)
 
@@ -380,7 +392,7 @@ class Effects(warer.WarerObject):
         return result
 
     @staticmethod
-    def apply_golden_hour_core(image: PIL.Image.Image) -> PIL.Image.Image:
+    def apply_golden_hour_core(image: PIL.Image.Image, **kwargs) -> PIL.Image.Image:
         """
         Теплые тона закатного солнца (Golden Hour Core)
 
@@ -397,7 +409,7 @@ class Effects(warer.WarerObject):
     # Frames Effects
 
     @staticmethod
-    def apply_leafes_frame(image: PIL.Image.Image, shape: tuple) -> PIL.Image.Image:
+    def apply_leafes_frame(image: PIL.Image.Image, shape: tuple, **kwargs) -> PIL.Image.Image:
         """
         Добавляет рамку с листьями
 
@@ -435,7 +447,7 @@ class Effects(warer.WarerObject):
             return PIL.ImageOps.expand(image, border=border_size, fill=frame_color)
     
     @staticmethod
-    def apply_plain_frame(image: PIL.Image.Image, border_size: int=20, color=(255, 255, 255)) -> PIL.Image.Image:
+    def apply_plain_frame(image: PIL.Image.Image, border_size: int=20, color=(255, 255, 255), **kwargs) -> PIL.Image.Image:
         """
         Простая рамка
 
@@ -449,7 +461,7 @@ class Effects(warer.WarerObject):
         return PIL.ImageOps.expand(image, border=border_size, fill=color)
     
     @staticmethod
-    def apply_goth_frame(image: PIL.Image.Image, shape: tuple) -> PIL.Image.Image:
+    def apply_goth_frame(image: PIL.Image.Image, shape: tuple, **kwargs) -> PIL.Image.Image:
         """
         Готическая черная рамка
 
@@ -475,7 +487,7 @@ class Effects(warer.WarerObject):
             
             # Конвертируем основное изображение в RGBA
             image_rgba = image.convert("RGBA")
-            
+
             # Накладываем рамку поверх изображения
             result = PIL.Image.alpha_composite(image_rgba, frame)
             

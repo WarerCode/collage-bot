@@ -174,6 +174,24 @@ class Image(base_type.BaseMediaType):
             pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
             self._image.save(file_path, format=format, **kwargs)
 
+    def scale(self, k: float=1.1) -> 'Image':
+        """
+        Масштабирует изображение.
+
+        Аргументы:
+            k (float): множитель масштабирования
+
+        Возвращает:
+            Image: новый объект изображения
+        """
+        if not self._image:
+            return self
+        
+        new_height = int(self._image.height * k)
+        new_width = int(self._image.width * k)
+
+        return self.resize((new_width, new_height))
+
     @property
     def image(self) -> PIL.Image.Image:
         """
@@ -218,7 +236,7 @@ class Image(base_type.BaseMediaType):
         self._file_path = value
 
     def apply_effect(self,
-                     effect_name: str,
+                     effect_name: effects.EffectNames,
                      **kwargs: dict) -> 'Image':
         """
         Применяет эффект по имени из перечислителя effects.EffectNames
@@ -230,10 +248,10 @@ class Image(base_type.BaseMediaType):
             Изображение после применения эффекта
         """
 
-        if effect_name not in effects.EFFECT_METHODS:
+        if effect_name.value not in effects.EFFECT_METHODS:
             raise ValueError(f"Unknown effect: {effect_name}")
         
-        new_image = effects.EFFECT_METHODS[effect_name](self._image, **kwargs)
+        new_image = effects.EFFECT_METHODS[effect_name.value](self._image, **kwargs)
         
         return Image(image=new_image)
 
@@ -302,13 +320,13 @@ if __name__ == "__main__":
                 continue
 
         # Тест эффектов-рамок
-        one_image = image_1_1.apply_effect(effects.EffectNames.LEAFES_FRAME.value, **{"shape": size_policy.SizePolicy.Size.SQUARE.value})
+        one_image = image_1_1.apply_effect(effects.EffectNames.LEAFES_FRAME, **{"shape": size_policy.SizePolicy.Size.SQUARE.value})
         one_image.save(os.path.join(MEDIA_ROOT, "effects", f"{effects.EffectNames.LEAFES_FRAME.value}.jpg"))
 
-        one_image = image_1_2.apply_effect(effects.EffectNames.GOTH_FRAME.value, **{"shape": size_policy.SizePolicy.Size.VERTICAL.value})
+        one_image = image_1_2.apply_effect(effects.EffectNames.GOTH_FRAME, **{"shape": size_policy.SizePolicy.Size.VERTICAL.value})
         one_image.save(os.path.join(MEDIA_ROOT, "effects", f"{effects.EffectNames.GOTH_FRAME.value}.jpg"))
 
-        one_image = my_image.apply_effect(effects.EffectNames.PLAIN_FRAME.value, **{"border_size": 20, "color": (100, 100, 255)})
+        one_image = my_image.apply_effect(effects.EffectNames.PLAIN_FRAME, **{"border_size": 20, "color": (100, 100, 255)})
         one_image.save(os.path.join(MEDIA_ROOT, "effects", f"{effects.EffectNames.PLAIN_FRAME.value}.jpg"))
         
     except FileNotFoundError as e:
