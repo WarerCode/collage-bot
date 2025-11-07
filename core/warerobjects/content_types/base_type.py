@@ -4,6 +4,8 @@
 """
 
 import abc
+import os
+import pathlib
 
 import core.warerobjects.warerobject as warer
 import core.warerobjects.politics.content_policy as content_policy
@@ -24,6 +26,17 @@ class BaseMediaType(warer.WarerObject):
         Инициализирует self.
         """
         super().__init__()
+
+    def make_dir(self, file_path: str) -> None:
+        """
+        Создаёт директорию если нужно.
+        """
+        if file_path:
+            dirs = file_path.split("\\")
+            file_dir = file_path
+            if "." in dirs[-1]:
+                file_dir = r"\\".join(dirs[:-1])
+            pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
 
     # @abc.abstractmethod
     # def apply_policy(self, policy: content_policy.ContentPolicy) -> 'BaseMediaType':

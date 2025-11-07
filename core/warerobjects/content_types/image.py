@@ -167,11 +167,7 @@ class Image(base_type.BaseMediaType):
             **kwargs: дополнительные параметры сохранения
         """
         if self._image:
-            dirs = file_path.split("\\")
-            file_dir = file_path
-            if "." in dirs[-1]:
-                file_dir = r"\\".join(dirs[:-1])
-            pathlib.Path(file_dir).mkdir(parents=True, exist_ok=True)
+            self.make_dir(file_path)
             self._image.save(file_path, format=format, **kwargs)
 
     def scale(self, k: float=1.1) -> 'Image':
