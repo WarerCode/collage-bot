@@ -5,12 +5,14 @@
 
 import core.warerobjects.warerobject as warer
 import core.warerobjects.content_types.base_type as base_type
+import core.warerobjects.content_types.text as text
 
 
 class Media(warer.WarerObject):
     """
     Класс, хранящий всю информацию о медиа данных, необходимых
     для ответа. Предоставляет интерфейс контейнера.
+    Поле self.content также может содержать и объекты типа text.Text.
     """
 
     def __init__(self, content: list[base_type.BaseMediaType]):
@@ -19,6 +21,16 @@ class Media(warer.WarerObject):
         """
         super().__init__()
         self.content = content
+
+    def merge_texts(self) -> text.Text:
+        """
+        Метод для сбора
+        """
+        merged = text.Text("")
+        for item in self.content:
+            if isinstance(item, text.Text):
+                merged += item
+        return merged
 
     def __str__(self):
         """

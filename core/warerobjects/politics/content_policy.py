@@ -13,33 +13,37 @@ import core.warerobjects.data.metadata as metadata
 
 class Hints(enum.Enum):
     """
-
+    Здесь описаны поля, которые могут быть переданы для
+    сборки сообщения-ответа для пользователя.
     """
 
     class CaptionFormats(enum.Enum):
         """
-
+        Здесь перечисленны поддерживаемые форматы текста
+        для сообщения-ответа для пользователя.
         """
         HTML = "html",
         MARKED_DOWN = "marked_down",
         NO_FORMAT = "no_format"
 
+    RAW_TEXT = "raw_text",
     HIDDEN_IMAGE = "hidden_image",
     NO_CAPTION = "no_caption",
     CAPTION_UPPER_IMAGE = "caption_upper_image",
-    IMAGE_PATHS = "image_paths",
+    MEDIA_PATHS = "media_paths",
     CAPTION_FORMAT = "caption_format"
 
     def __str__(self):
         """
-
+        Метод для конфертации значения перечисления в строку.
+        Используется неявно.
         """
         return self.value
 
 # триггер - величина, имеющая два значения
 TRIGGERS = {
-    Hints.HIDDEN_IMAGE: "has_spoiler",
-    Hints.NO_CAPTION: Hints.NO_CAPTION.value
+    Hints.HIDDEN_IMAGE,
+    Hints.NO_CAPTION
 }
 
 
@@ -94,7 +98,7 @@ class ContentPolicy(policy.Policy):
 
     def __getitem__(self, item):
         """
-
+        Метод для доступа к элементам через оператор []
         """
         return self.data.get(item)
 
@@ -102,23 +106,13 @@ class ContentPolicy(policy.Policy):
 if __name__ == "__main__":
     help(ContentPolicy)
 
-    data = MetaData()
+    data = metadata.MetaData()
     data.set_hint(Hints.HIDDEN_IMAGE, False)
     data.set_hint(Hints.CAPTION_UPPER_IMAGE, True)
-    data.set_hint(Hints.IMAGE_PATHS, [
+    data.set_hint(Hints.MEDIA_PATHS, [
         "some_long_path.png","some_long_path_1.png"
     ])
     data.set_hint(Hints.CAPTION_FORMAT, Hints.CaptionFormats.HTML)
     policy = ContentPolicy(data)
-
-    # ContentPolicy(
-    #   "hidden_image": False,
-    #   "caption_upper_image": True,
-    #   "image_paths": [
-    #       "some_long_path.png",
-    #       "some_long_path_1.png"
-    #       ]
-    #   "caption_format": CaptionFormats.HTML
-    # )
 
     print(policy)

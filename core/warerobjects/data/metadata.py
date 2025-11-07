@@ -78,16 +78,18 @@ class MetaData(warer.WarerObject):
         warer.WarerObject.reset_hints(self)
         self.reset_specific()
 
-    def from_dict(self, obj: dict):
+    @staticmethod
+    def from_dict(obj: dict):
         """
         Инициализирует данные из json.
 
         Аргументы:
             obj (dict): словарь для копирования.
         """
-        self.reset_hints()
+        data = MetaData()
         for key, value in obj.items():
-            self.set_hint(key, value)
+            data.set_hint(key, value)
+        return data
 
     def set_hints(self, obj: dict):
         """

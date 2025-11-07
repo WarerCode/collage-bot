@@ -8,6 +8,8 @@ import telebot.types as types
 
 import core.warerobjects.warerobject as warer
 import core.dialog.media as media
+import core.warerobjects.content_types.base_type as base_type
+import core.warerobjects.content_types.text as text
 
 
 class MessageFields(enum.Enum):
@@ -43,13 +45,13 @@ class ContextMessage(warer.WarerObject):
 
     def __init__(self,
                  message: types.Message,
-                 content: list[media.Media]=None):
+                 media_data: media.Media=None):
         """
         Инициализирует self.
         """
         super().__init__()
         self.reply_to_message = message
-        self.content = [] if not content else content
+        self.media_data = media.Media([]) if not media_data else media_data
 
     @property
     def user_text(self):
@@ -62,7 +64,7 @@ class ContextMessage(warer.WarerObject):
         """
         Человекочитаемое представление объекта.
         """
-        return f"ContextMessage(reply_to_message={self.reply_to_message})"
+        return f"ContextMessage(reply_to_message={self.reply_to_message}, media_data={self.media_data})"
 
     def __repr__(self):
         """
@@ -85,7 +87,11 @@ if __name__ == "__main__":
     from telebot.types import Message, User, Chat
 
     # Создаем имитацию объекта User
-    fake_user = User(id=12345, is_bot=False, first_name="Иван", last_name="Иванов", username="ivan_ivanov")
+    fake_user = User(id=12345,
+                     is_bot=False,
+                     first_name="Иван",
+                     last_name="Иванов",
+                     username="ivan_ivanov")
 
     # Создаем имитацию объекта Chat
     fake_chat = Chat(id=67890, type="private")
