@@ -231,6 +231,23 @@ class Image(base_type.BaseMediaType):
         """
         self._file_path = value
 
+    @property
+    def file_name(self) -> str:
+        """
+        Свойство-getter для пути к файлу.
+
+        Возвращает:
+            str: путь к файлу изображения
+        """
+        file_name = None
+
+        if self._file_path:
+            dirs = self._file_path.split("\\")
+            if "." in dirs[-1]:
+                file_name = dirs[-1]
+
+        return file_name
+
     def apply_effect(self,
                      effect_name: effects.EffectNames,
                      **kwargs: dict) -> 'Image':
