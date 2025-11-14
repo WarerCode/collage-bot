@@ -6,7 +6,6 @@ import PIL
 import PIL.Image
 import PIL.ImageFilter
 import PIL.ImageEnhance
-import core.warerobjects.politics.size_policy as size_policy
 import core.warerobjects.warerobject as warer
 
 
@@ -122,6 +121,7 @@ class Effects(warer.WarerObject):
     Поля экземпляра:
         Отсутствуют
     """
+
     def __init__(self):
         """
         Инициализация объекта.
@@ -240,7 +240,7 @@ class Effects(warer.WarerObject):
 
     # Main Effects
     @staticmethod
-    def apply_grayscale(image: PIL.Image.Image) -> PIL.Image.Image:
+    def apply_grayscale(image: PIL.Image.Image, **kwargs) -> PIL.Image.Image:
         """
         Применяет черно-белый фильтр на изображение
 
@@ -252,7 +252,7 @@ class Effects(warer.WarerObject):
         return image.convert('L').convert('RGB')
     
     @staticmethod
-    def apply_blur(image: PIL.Image.Image, radius: int = 1.5) -> PIL.Image.Image:
+    def apply_blur(image: PIL.Image.Image, radius: int = 1.5, **kwargs) -> PIL.Image.Image:
         """
         Применяет размытие на изображение
 
@@ -267,7 +267,7 @@ class Effects(warer.WarerObject):
         return image.filter(PIL.ImageFilter.GaussianBlur(radius))
     
     @staticmethod
-    def apply_noise(image: PIL.Image.Image, intensity: float = 0.05) -> PIL.Image.Image:
+    def apply_noise(image: PIL.Image.Image, intensity: float = 0.05, **kwargs) -> PIL.Image.Image:
         """
         Применяет шум на изображение
 
@@ -285,7 +285,7 @@ class Effects(warer.WarerObject):
         return PIL.Image.fromarray(noisy_array)
     
     @staticmethod
-    def apply_vignette(image: PIL.Image.Image, intensity: float = 0.8) -> PIL.Image.Image:
+    def apply_vignette(image: PIL.Image.Image, intensity: float = 0.7, **kwargs) -> PIL.Image.Image:
         """
         Применяет виньетирование (затемнение краев) на изображение
 
@@ -297,23 +297,35 @@ class Effects(warer.WarerObject):
         Возвращает:
             Изображение после применения эффекта
         """
-        width, height = image.size
-        x_center, y_center = width // 2, height // 2
-        max_dist = np.sqrt(x_center**2 + y_center**2)
+        # Конвертируем изображение в массив numpy
+        img_array = np.array(image)
         
-        vignette = PIL.Image.new('L', (width, height))
-        for x in range(width):
-            for y in range(height):
-                dist = np.sqrt((x - x_center)**2 + (y - y_center)**2)
-                factor = 1 - (dist / max_dist) * intensity
-                vignette.putpixel((x, y), int(255 * factor))
+        # Создаем координатные сетки
+        height, width = img_array.shape[:2]
+        x = np.linspace(-1, 1, width)
+        y = np.linspace(-1, 1, height)
+        X, Y = np.meshgrid(x, y)
         
-        return PIL.Image.composite(image, PIL.Image.new('RGB', image.size, 'black'), vignette)
+        # Вычисляем расстояния от центра
+        dist = np.sqrt(X**2 + Y**2)
+        
+        # Создаем маску виньетирования
+        mask = 1 - dist * intensity
+        mask = np.clip(mask, 0, 1)
+        
+        # Применяем маску к каждому каналу
+        if len(img_array.shape) == 3:  # RGB изображение
+            mask = mask[:, :, np.newaxis]  # Добавляем dimension для broadcasting
+            result_array = (img_array * mask).astype(np.uint8)
+        else:  # Grayscale изображение
+            result_array = (img_array * mask).astype(np.uint8)
+        
+        return PIL.Image.fromarray(result_array)
     
     # Core Effects
 
     @staticmethod
-    def apply_vintage_core(image: PIL.Image.Image) -> PIL.Image.Image:
+    def apply_vintage_core(image: PIL.Image.Image, **kwargs) -> PIL.Image.Image:
         """
         Винтажный эффект (Vintage Core)
 
@@ -327,10 +339,10 @@ class Effects(warer.WarerObject):
         result = Effects.adjust_saturation(result, 0.8)
         result = Effects.adjust_contrast(result, 1.1)
         result = Effects.apply_noise(result, 0.02)
-        return Effects.apply_vignette(result, 0.2)
+        return Effects.apply_vignette(result, 0.3)
 
     @staticmethod
-    def apply_indie_core(image: PIL.Image.Image) -> PIL.Image.Image:
+    def apply_indie_core(image: PIL.Image.Image, **kwargs) -> PIL.Image.Image:
         """
         Яркие насыщенные цвета (Indie Core)
 
@@ -347,7 +359,7 @@ class Effects(warer.WarerObject):
         return result
 
     @staticmethod
-    def apply_old_money_core(image: PIL.Image.Image) -> PIL.Image.Image:
+    def apply_old_money_core(image: PIL.Image.Image, **kwargs) -> PIL.Image.Image:
         """
         Богатые глубокие тона (Old Money Core)
 
@@ -364,7 +376,7 @@ class Effects(warer.WarerObject):
         return result
 
     @staticmethod
-    def apply_fairy_core(image: PIL.Image.Image) -> PIL.Image.Image:
+    def apply_fairy_core(image: PIL.Image.Image, **kwargs) -> PIL.Image.Image:
         """
         Мягкие пастельные тона с легким свечением (Fairy Core)
 
@@ -380,7 +392,7 @@ class Effects(warer.WarerObject):
         return result
 
     @staticmethod
-    def apply_golden_hour_core(image: PIL.Image.Image) -> PIL.Image.Image:
+    def apply_golden_hour_core(image: PIL.Image.Image, **kwargs) -> PIL.Image.Image:
         """
         Теплые тона закатного солнца (Golden Hour Core)
 
@@ -397,7 +409,7 @@ class Effects(warer.WarerObject):
     # Frames Effects
 
     @staticmethod
-    def apply_leafes_frame(image: PIL.Image.Image, shape: tuple) -> PIL.Image.Image:
+    def apply_leafes_frame(image: PIL.Image.Image, shape: tuple, **kwargs) -> PIL.Image.Image:
         """
         Добавляет рамку с листьями
 
@@ -435,7 +447,7 @@ class Effects(warer.WarerObject):
             return PIL.ImageOps.expand(image, border=border_size, fill=frame_color)
     
     @staticmethod
-    def apply_plain_frame(image: PIL.Image.Image, border_size: int=20, color=(255, 255, 255)) -> PIL.Image.Image:
+    def apply_plain_frame(image: PIL.Image.Image, border_size: int=20, color=(255, 255, 255), **kwargs) -> PIL.Image.Image:
         """
         Простая рамка
 
@@ -449,7 +461,7 @@ class Effects(warer.WarerObject):
         return PIL.ImageOps.expand(image, border=border_size, fill=color)
     
     @staticmethod
-    def apply_goth_frame(image: PIL.Image.Image, shape: tuple) -> PIL.Image.Image:
+    def apply_goth_frame(image: PIL.Image.Image, shape: tuple, **kwargs) -> PIL.Image.Image:
         """
         Готическая черная рамка
 
@@ -475,7 +487,7 @@ class Effects(warer.WarerObject):
             
             # Конвертируем основное изображение в RGBA
             image_rgba = image.convert("RGBA")
-            
+
             # Накладываем рамку поверх изображения
             result = PIL.Image.alpha_composite(image_rgba, frame)
             
@@ -493,43 +505,6 @@ class Effects(warer.WarerObject):
             framed = PIL.ImageOps.expand(framed, border=inner_border, fill='black')
             
             return framed
-    
-    @classmethod
-    def apply_effect(cls,
-                     image: PIL.Image.Image,
-                     effect_name: str,
-                     **kwargs: dict) -> PIL.Image.Image:
-        """
-        Применяет эффект по имени из перечислителя EffectNames
-
-        Аргументы:
-            image: исходное изображение
-            effect_name: название эффекта
-            **kwargs: дополнительные параметры для передачи в функцию конкретного эффекта
-        Возвращает:
-            Изображение после применения эффекта
-        """
-        effect_methods = {
-            EffectNames.GRAY.value: cls.apply_grayscale,
-            EffectNames.BLUR.value: cls.apply_blur,
-            EffectNames.NOISE.value: cls.apply_noise,
-            EffectNames.VIGNETTE.value: cls.apply_vignette,
-            
-            EffectNames.VINTAGE_CORE.value: cls.apply_vintage_core,
-            EffectNames.INDIE_CORE.value: cls.apply_indie_core,
-            EffectNames.OLD_MONEY_CORE.value: cls.apply_old_money_core,
-            EffectNames.FAIRY_CORE.value: cls.apply_fairy_core,
-            EffectNames.GOLDEN_HOUR_CORE.value: cls.apply_golden_hour_core,
-            
-            EffectNames.LEAFES_FRAME.value: cls.apply_leafes_frame,
-            EffectNames.PLAIN_FRAME.value: cls.apply_plain_frame,
-            EffectNames.GOTH_FRAME.value: cls.apply_goth_frame,
-        }
-        
-        if effect_name not in effect_methods:
-            raise ValueError(f"Unknown effect: {effect_name}")
-        
-        return effect_methods[effect_name](image, **kwargs)
     
     def __str__(self):
         """
@@ -553,30 +528,23 @@ class Effects(warer.WarerObject):
         """
         pass
 
+EFFECT_METHODS = {
+    EffectNames.GRAY.value: Effects.apply_grayscale,
+    EffectNames.BLUR.value: Effects.apply_blur,
+    EffectNames.NOISE.value: Effects.apply_noise,
+    EffectNames.VIGNETTE.value: Effects.apply_vignette,
+    
+    EffectNames.VINTAGE_CORE.value: Effects.apply_vintage_core,
+    EffectNames.INDIE_CORE.value: Effects.apply_indie_core,
+    EffectNames.OLD_MONEY_CORE.value: Effects.apply_old_money_core,
+    EffectNames.FAIRY_CORE.value: Effects.apply_fairy_core,
+    EffectNames.GOLDEN_HOUR_CORE.value: Effects.apply_golden_hour_core,
+    
+    EffectNames.LEAFES_FRAME.value: Effects.apply_leafes_frame,
+    EffectNames.PLAIN_FRAME.value: Effects.apply_plain_frame,
+    EffectNames.GOTH_FRAME.value: Effects.apply_goth_frame,
+}
+
 if __name__ == "__main__":
-    # Пример использования
-    effects = Effects()
-
-    # Загрузка изображений
-    image = PIL.Image.open(os.path.join(ASSETS_ROOT, "test", "effects_test.jpg"))
-    image_1_1 = PIL.Image.open(os.path.join(ASSETS_ROOT, "test", "1_1.jpg"))
-    image_1_2 = PIL.Image.open(os.path.join(ASSETS_ROOT, "test", "1_2.jpg"))
-
-    # Применение одного эффекта
-    for eff in EffectNames:
-        try:
-            new_image = effects.apply_effect(image, eff.value)
-            new_image.save(os.path.join(MEDIA_ROOT, f"{eff.value}.jpg"))
-        except Exception as e:
-            print(e)
-            continue
-
-    # Тест эффектов-рамок
-    one_image = effects.apply_effect(image_1_1, EffectNames.LEAFES_FRAME.value, **{"shape": size_policy.SizePolicy.Size.SQUARE.value})
-    one_image.save(os.path.join(MEDIA_ROOT, f"{EffectNames.LEAFES_FRAME.value}.jpg"))
-
-    one_image = effects.apply_effect(image_1_1, EffectNames.GOTH_FRAME.value, **{"shape": size_policy.SizePolicy.Size.SQUARE.value})
-    one_image.save(os.path.join(MEDIA_ROOT, f"{EffectNames.GOTH_FRAME.value}.jpg"))
-
-    one_image = effects.apply_effect(image, EffectNames.PLAIN_FRAME.value, **{"border_size": 20, "color": (100, 100, 255)})
-    one_image.save(os.path.join(MEDIA_ROOT, f"{EffectNames.PLAIN_FRAME.value}.jpg"))
+    # Пример использования еффектов можно увидеть в core.warerobjects.content_types.image
+    pass
