@@ -72,6 +72,20 @@ class User(warer.WarerObject):
             )
         )
 
+    @property
+    def username(self):
+        """
+        Синтаксический сахар для сокращенной записи и оптимального доступа к полям.
+        """
+        return self.info.get_hint(userinfo.UserFields.USERNAME)
+
+    @property
+    def user_id(self):
+        """
+        Синтаксический сахар для сокращенной записи и оптимального доступа к полям.
+        """
+        return self.info.get_hint(userinfo.UserFields.USER_ID)
+
     def decrement_limits(self, limit: str, dec: int=1, reset: bool=False):
         """
         Метод для регулирования ограничений на пользование ботом.

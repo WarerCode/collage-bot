@@ -52,24 +52,26 @@ class DialogContext(warer.WarerObject):
         query, params = database.BaseQueries.select(
             database.TableNames.USERS,
             [
-                user.UserFields.USER_ID,
-                user.UserFields.USERNAME,
-                user.UserFields.STATUS
+                userinfo.UserFields.USER_ID,
+                userinfo.UserFields.USERNAME,
+                userinfo.UserFields.STATUS
             ],
             conditions={
-                user.UserFields.USER_ID: user_id
+                userinfo.UserFields.USER_ID: user_id
             }
         )
         user_info = db.fetch_one(query, params)
 
         if user_info:
+            user_id_str = userinfo.UserFields.USER_ID
+            username_str = userinfo.UserFields.USERNAME
             self.user = user.User(
-                userinfo.UserInfo(
-                    user_info.get(user.UserFields.USER_ID),
-                    user_info.get(user.UserFields.USERNAME)
-                ),
+                userinfo.UserInfo(**{
+                    user_id_str: user_info.get(user_id_str),
+                    username_str: user_info.get(username_str)
+                }),
                 using_policy.UsingPolicy(
-                    user_info.get(user.UserFields.USERNAME)
+                    user_info.get(username_str)
                 )
             )
 
@@ -90,10 +92,10 @@ class DialogContext(warer.WarerObject):
         """
         Удобное строковое представление объекта.
         """
-        return (f"<DialogContext: user_id={self.user.user_info.user_id}, "
-                f"username={self.user.user_info.username}, "
+        return (f"<DialogContext: user_id={self.user.user_id}, "
+                f"username={self.user.username}, "
                 f"state={self.state}, "
-                f"text={self.message.text}>")
+                f"text={self.message.user_text}>")
 
     def __repr__(self):
         """
@@ -108,10 +110,10 @@ class DialogContext(warer.WarerObject):
         Преобразует объект в словарь (например, для логирования или сериализации).
         """
         return {
-            "user_id": self.user.user_info.user_id,
-            "username": self.user.user_info.username,
+            "user_id": self.user.user_id,
+            "username": self.user.username,
             "state": str(self.state),
-            "text": self.message.text
+            "text": self.message.user_text
         }
 
 
@@ -160,5 +162,5 @@ if __name__ == "__main__":
     print("Тип объекта:", type(context))
     print("Поле .user:", context.user)
     print("Поле .message:", context.message)
-    print("Поле .message.text:", context.message.text)
+    print("Поле .message.text:", context.message.user_text)
     print("Поле .state:", context.state)

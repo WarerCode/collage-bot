@@ -14,6 +14,7 @@ class UserFields(enum.Enum):
     """
     Перечислитель, хранящий поля пользователя бота.
     """
+
     USER_ID = "user_id"
     USERNAME = "username"
     IS_BOT = "is_bot"

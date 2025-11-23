@@ -47,6 +47,9 @@ class DialogTree(warer.WarerObject):
                     f"parent.name={self.parent.name if self.parent else None}, "
                     f"children={[child.name for child in self.children]})")
 
+        def __str__(self):
+            return self.__repr__()
+
         @property
         def is_nil(self) -> bool:
             """
