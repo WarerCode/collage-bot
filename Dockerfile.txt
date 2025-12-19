@@ -20,4 +20,4 @@ VOLUME /app
 # Очистка кеша pip
 RUN find /venv -type d -name '__pycache__' -exec rm -rf {} +
 
-# CMD ["python", "core/bot.py"]
+CMD ["python", "core/bot.py"]

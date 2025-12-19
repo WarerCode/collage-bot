@@ -14,9 +14,6 @@ import abc
 import core.warerobjects.warerobject as warer
 import core.warerobjects.data.userinfo as userinfo
 
-
-dotenv.load_dotenv(r"E:\портфолио студента\материалы\2025 - 2026\Programming\Python\collage bot\dev.env")
-
 class DBTypes(enum.Enum):
     """
     Допустимые типы базы данных
@@ -33,10 +30,28 @@ class TableNames(enum.Enum):
     TAGS= "tags"
     IMAGE_TAG_RELATIONS= "image_tag_relations"
     PAYMENTS= "payments"
-    SUBSCRIPTION_PLANS= "subscription_plans"
+    # По умолчанию поле price для всех таблиц *_PLANS указывается в валюте XTR
+    # SUBSCRIPTION_PLANS= "subscription_plans"
+    SUBSCRIPTIONS= "subscriptions"
 
     def __str__(self):
         return self.value
+    
+class ProductTableNames(enum.Enum):
+    """
+    Список названий таблиц базы данных
+    
+    """
+    SUBSCRIPTIONS= TableNames.SUBSCRIPTIONS.value
+
+    def __str__(self):
+        return self.value
+    
+class SubscriptionPlan(enum.Enum):
+    """Планы подписок"""
+    BASIC = "basic"
+    PREMIUM = "premium" 
+    PRO = "pro"
 
 class TableConfig(abc.ABC):
     """Конфигурация таблиц с информацией о первичных ключах"""
@@ -47,7 +62,8 @@ class TableConfig(abc.ABC):
         TableNames.TAGS: "id",
         TableNames.IMAGE_TAG_RELATIONS: ("image_id", "tag_id"),
         TableNames.PAYMENTS: "id",
-        TableNames.SUBSCRIPTION_PLANS: "id",
+        # TableNames.SUBSCRIPTION_PLANS: "id",
+        TableNames.SUBSCRIPTIONS: "id",
     }
     
     @classmethod
@@ -91,7 +107,8 @@ class TableQueries(enum.Enum):
             file_id TEXT UNIQUE NOT NULL,
             times_used INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES {TableNames.USERS.value}(user_id) ON DELETE CASCADE
         );
     """
     CREATE_TABLE_TAGS = f"""
@@ -99,7 +116,8 @@ class TableQueries(enum.Enum):
             id SERIAL PRIMARY KEY,
             name VARCHAR(30) UNIQUE,
             times_used INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         );
     """
     CREATE_TABLE_IMAGE_TAG_RELATIONS = f"""
@@ -107,34 +125,52 @@ class TableQueries(enum.Enum):
             image_id INTEGER,
             tag_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (image_id, tag_id),
-            FOREIGN KEY (image_id) REFERENCES images(id) ON DELETE CASCADE,
-            FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+            FOREIGN KEY (image_id) REFERENCES {TableNames.IMAGES.value}(id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES {TableNames.TAGS.value}(id) ON DELETE CASCADE
         );
     """
     CREATE_TABLE_PAYMENTS = f"""
         CREATE TABLE IF NOT EXISTS {TableNames.PAYMENTS.value} (
             id SERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL,
+            item_id INTEGER NOT NULL,
+            item_type VARCHAR(50) NOT NULL CHECK (item_type IN ({", ".join(product.value for product in ProductTableNames)})),
+            telegram_payment_charge_id VARCHAR(200) DEFAULT '',
             amount DECIMAL(10, 2) NOT NULL,
             currency VARCHAR(3) DEFAULT 'STR',
             method VARCHAR(50), -- 'yookassa', 'crypto', и т.д.
+            status VARCHAR(50), -- 'pending', 'completed', и т.д.
             data JSON, -- данные о платеже
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES {TableNames.USERS.value}(user_id) ON DELETE CASCADE
         );
     """
-    CREATE_TABLE_SUBSCRIPTION_PLANS = f"""
-        CREATE TABLE IF NOT EXISTS {TableNames.SUBSCRIPTION_PLANS.value} (
+    # CREATE_TABLE_SUBSCRIPTION_PLANS = f"""
+    #     CREATE TABLE IF NOT EXISTS {TableNames.SUBSCRIPTION_PLANS.value} (
+    #         id SERIAL PRIMARY KEY,
+    #         type VARCHAR(50) UNIQUE NOT NULL CHECK (type IN ({", ".join(plan.value for plan in SubscriptionPlan)})),
+    #         name VARCHAR(100) NOT NULL,
+    #         description TEXT,
+    #         price DECIMAL(10, 2) NOT NULL,
+    #         duration INTERVAL NOT NULL,
+    #         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    #         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    #         FOREIGN KEY (payment_id) REFERENCES {TableNames.PAYMENTS.value}(id) ON DELETE SET NULL
+    #     );
+    # """
+    CREATE_TABLE_SUBSCRIPTIONS = f"""
+        CREATE TABLE IF NOT EXISTS {TableNames.SUBSCRIPTIONS.value} (
             id SERIAL PRIMARY KEY,
-            payment_id INTEGER NOT NULL,
-            name VARCHAR(100) NOT NULL,
-            description TEXT,
-            price DECIMAL(10, 2) NOT NULL,
+            plan_type VARCHAR(50) NOT NULL,
+            user_id INTEGER NOT NULL,
             start_date TIMESTAMP NOT NULL,
             end_date TIMESTAMP NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES {TableNames.USERS.value}(id) ON DELETE CASCADE
         );
     """
 
@@ -295,6 +331,7 @@ class Database(warer.WarerObject):
         super().__init__()
         self.db_type = db_type
         self.connection_params = kwargs
+        print(self.connection_params)
 
         queries_list = [
             (TableQueries.CREATE_TABLE_USERS.value, (3,)),
@@ -408,6 +445,8 @@ class Database(warer.WarerObject):
         }
 
 if __name__ == "__main__":
+    dotenv.load_dotenv("dev.env")
+    
     print("Пример использования базы данных:")
     print()
 
@@ -436,7 +475,7 @@ if __name__ == "__main__":
 
     q, p = BaseQueries.delete(TableNames.TAGS, conditions={"id": temp_tag.get("id")})
     db.execute(q, p)
-    print(f"Тег с именем {temp_tag.get("name")} был удалён")
+    print(f"Тег с именем {temp_tag.get('name')} был удалён")
 
     q, p = BaseQueries.select(TableNames.TAGS, conditions={"name": "harry_potter", "times_used": 1})
     temp_tags = db.fetch_all(q, p)

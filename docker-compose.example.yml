@@ -1,10 +1,10 @@
-version: '3.8'
+# version: '3.8'
 
 services:
   backend:
     build: .
-    command: python core/test.py
-    container_name: backend
+    command: ping 127.0.0.1
+    container_name: collage-backend
     volumes:
       - .:/app
       - static_volume:/app/static
@@ -14,17 +14,17 @@ services:
 
   db:
     image: postgres:13
-    container_name: postgres
+    container_name: collage-postgres
     env_file:
       - dev.env
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: zq(4lse44e)y3112*6!
+      POSTGRES_DB: collage_bot_db
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     ports:
-      - "${DB_PORT}:${DB_PORT}"
+      - "5432:5432"
 
 volumes:
   postgres_data:
