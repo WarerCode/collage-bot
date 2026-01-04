@@ -3,6 +3,7 @@
 """
 
 import os
+import datetime
 import sqlite3
 import psycopg2
 import psycopg2.extras as ps_extras
@@ -10,9 +11,48 @@ import enum
 import contextlib
 import dotenv
 import abc
+import telebot
 
 import core.warerobjects.warerobject as warer
 import core.warerobjects.data.userinfo as userinfo
+import core.user as collage_user
+
+class MatchesTypes(enum.Enum):
+        TG_USER = "tg_user"
+
+class MatchesItems(enum.Enum):
+    MatchesTypes.TG_USER = {
+        'id': userinfo.UserFields.USER_ID.value, 
+        'is_bot': userinfo.UserFields.IS_BOT.value, 
+        'first_name': userinfo.UserFields.FIRST_NAME.value, 
+        'last_name': userinfo.UserFields.LAST_NAME.value, 
+        'username': userinfo.UserFields.USERNAME.value, 
+        'language_code': userinfo.UserFields.LANGUAGE_CODE.value, 
+        'can_join_groups': userinfo.UserFields.CAN_JOIN_GROUPS.value, 
+        'can_read_all_group_messages': userinfo.UserFields.CAN_READ_ALL_GROUP_MESSAGES.value, 
+        'supports_inline_queries': userinfo.UserFields.SUPPORTS_INLINE_QUERIES.value, 
+        'is_premium': userinfo.UserFields.IS_PREMIUM.value, 
+        'added_to_attachment_menu': userinfo.UserFields.ADDED_TO_ATTACHMENT_MENU.value, 
+        'can_connect_to_business': userinfo.UserFields.CAN_CONNECT_TO_BUSINESS.value, 
+        'has_main_web_app': userinfo.UserFields.HAS_MAIN_WEB_APP.value
+    }
+
+class FieldsMatches:
+    """
+    Допустимые типы базы данных
+    """
+
+    def __init__(self):
+        pass
+
+    def class_to_db(type: MatchesTypes):
+        return MatchesItems[type].value
+    
+    def db_to_class(type: MatchesTypes):
+        data = {}
+        for key, val in MatchesItems[type].value:
+            data[val] = key
+        return data
 
 class DBTypes(enum.Enum):
     """
@@ -57,13 +97,13 @@ class TableConfig(abc.ABC):
     """Конфигурация таблиц с информацией о первичных ключах"""
     
     TABLE_PRIMARY_KEYS = {
-        TableNames.USERS: userinfo.UserFields.USER_ID,
-        TableNames.IMAGES: "id",
-        TableNames.TAGS: "id",
+        TableNames.USERS: (userinfo.UserFields.USER_ID,),
+        TableNames.IMAGES: ("id",),
+        TableNames.TAGS: ("id",),
         TableNames.IMAGE_TAG_RELATIONS: ("image_id", "tag_id"),
-        TableNames.PAYMENTS: "id",
-        # TableNames.SUBSCRIPTION_PLANS: "id",
-        TableNames.SUBSCRIPTIONS: "id",
+        TableNames.PAYMENTS: ("id",),
+        # TableNames.SUBSCRIPTION_PLANS: ("id",),
+        TableNames.SUBSCRIPTIONS: ("id",),
     }
     
     @classmethod
@@ -89,7 +129,10 @@ class TableQueries(enum.Enum):
             {userinfo.UserFields.USER_ID} INTEGER PRIMARY KEY,
             {userinfo.UserFields.USERNAME} VARCHAR(100),
             {userinfo.UserFields.IS_BOT} BOOLEAN DEFAULT FALSE,
+
             {userinfo.UserFields.STATUS} VARCHAR(100),
+            {userinfo.UserFields.EMAIL} VARCHAR(200),
+            
             {userinfo.UserFields.FIRST_NAME} VARCHAR(100),
             {userinfo.UserFields.LAST_NAME} VARCHAR(100),
             {userinfo.UserFields.LANGUAGE_CODE} VARCHAR(10),
@@ -101,7 +144,7 @@ class TableQueries(enum.Enum):
         );
     """
     CREATE_TABLE_IMAGES = f"""
-       CREATE TABLE IF NOT EXISTS {TableNames.IMAGES.value} (
+        CREATE TABLE IF NOT EXISTS {TableNames.IMAGES.value} (
             id SERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL,
             file_id TEXT UNIQUE NOT NULL,
@@ -112,16 +155,16 @@ class TableQueries(enum.Enum):
         );
     """
     CREATE_TABLE_TAGS = f"""
-       CREATE TABLE IF NOT EXISTS {TableNames.TAGS.value} (
+        CREATE TABLE IF NOT EXISTS {TableNames.TAGS.value} (
             id SERIAL PRIMARY KEY,
             name VARCHAR(30) UNIQUE,
             times_used INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
     """
     CREATE_TABLE_IMAGE_TAG_RELATIONS = f"""
-       CREATE TABLE IF NOT EXISTS {TableNames.IMAGE_TAG_RELATIONS.value} (
+        CREATE TABLE IF NOT EXISTS {TableNames.IMAGE_TAG_RELATIONS.value} (
             image_id INTEGER,
             tag_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -135,11 +178,11 @@ class TableQueries(enum.Enum):
         CREATE TABLE IF NOT EXISTS {TableNames.PAYMENTS.value} (
             id SERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL,
-            item_id INTEGER NOT NULL,
-            item_type VARCHAR(50) NOT NULL CHECK (item_type IN ({", ".join(product.value for product in ProductTableNames)})),
+            item_id INTEGER,
+            item_type VARCHAR(50) NOT NULL CHECK (item_type IN ({", ".join(f"'{product.value}'" for product in ProductTableNames)})),
             telegram_payment_charge_id VARCHAR(200) DEFAULT '',
             amount DECIMAL(10, 2) NOT NULL,
-            currency VARCHAR(3) DEFAULT 'STR',
+            currency VARCHAR(3) DEFAULT 'XTR',
             method VARCHAR(50), -- 'yookassa', 'crypto', и т.д.
             status VARCHAR(50), -- 'pending', 'completed', и т.д.
             data JSON, -- данные о платеже
@@ -168,6 +211,7 @@ class TableQueries(enum.Enum):
             user_id INTEGER NOT NULL,
             start_date TIMESTAMP NOT NULL,
             end_date TIMESTAMP NOT NULL,
+            is_active BOOLEAN DEFAULT FALSE, -- должна быть у всех оплачиваемых элементов
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES {TableNames.USERS.value}(id) ON DELETE CASCADE
@@ -226,12 +270,13 @@ class BaseQueries(abc.ABC):
         """
         keys = ", ".join(data.keys())
         pk = TableConfig.get_primary_key(table_name)
+        conflict_clause = ', '.join(pk)
 
-        if isinstance(pk, list):
-            # Для составных ключей нужен особый подход
-            conflict_clause = ', '.join(pk)
-        else:
-            conflict_clause = pk
+        # if isinstance(pk, list):
+        #     # Для составных ключей нужен особый подход
+        #     conflict_clause = ', '.join(pk)
+        # else:
+        #     conflict_clause = pk
 
         query = f"""
             INSERT INTO
@@ -339,7 +384,7 @@ class Database(warer.WarerObject):
             (TableQueries.CREATE_TABLE_IMAGES.value, None),
             (TableQueries.CREATE_TABLE_IMAGE_TAG_RELATIONS.value, None),
             (TableQueries.CREATE_TABLE_PAYMENTS.value, None),
-            (TableQueries.CREATE_TABLE_SUBSCRIPTION_PLANS.value, None),
+            # (TableQueries.CREATE_TABLE_SUBSCRIPTION_PLANS.value, None),
         ]
 
         self.execute_many(queries_list)
@@ -399,6 +444,8 @@ class Database(warer.WarerObject):
         with self.get_connection() as conn:
             cursor = conn.cursor(cursor_factory=ps_extras.RealDictCursor)
             for query, params in data:
+                print("SQL:", query)
+                print("PARAMS:", params)
                 cursor.execute(query, params or [])
             return cursor
     
@@ -443,6 +490,43 @@ class Database(warer.WarerObject):
             "db_type": self.db_type,
             "connection_params": self.connection_params,
         }
+
+def ensure_user_exists(
+        db: Database, 
+        tg_user: telebot.types.User, 
+        cache: collage_user.UserCache
+    ) -> collage_user.User:
+    if not cache.need_sync(tg_user.id):
+        return
+
+    tg_data = {}
+
+    user_pk = TableConfig.get_primary_key(TableNames.USERS.value)
+
+    for field, val in tg_user.to_dict():
+        db_field = TgUserFieldsMatches.get(field)
+        if db_field is None or db_field in user_pk:
+            continue
+        tg_data[db_field] = val
+
+    backend_data = {
+        userinfo.UserFields.UPDATED_AT: datetime.datetime.now()
+    }
+
+    data = tg_data | backend_data
+
+    query, params = BaseQueries.select(TableNames.USERS, conditions={user_pk[0]: tg_user.id})
+    db_user = db.fetch_one(query, params)
+
+    if db_user:
+        query, params = BaseQueries.update(TableNames.USERS, data=data, conditions={user_pk[0]: tg_user.id})
+        user = db.execute(query, params)
+    else:
+        query, params = BaseQueries.insert(TableNames.USERS, data=(data | {user_pk[0]: tg_user.id}))
+        user = db.execute(query, params)
+
+    return user
+
 
 if __name__ == "__main__":
     dotenv.load_dotenv("dev.env")

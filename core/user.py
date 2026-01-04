@@ -6,8 +6,10 @@
 см. подробнее в database.py
 """
 
+import time
 import telebot.types as types
 
+from core.warerobjects.management import database
 import core.warerobjects.warerobject as warer
 import core.warerobjects.politics.using_policy as using_policy
 import core.warerobjects.politics.using_limits as using_limits
@@ -26,8 +28,8 @@ class User(warer.WarerObject):
     """
     
     def __init__(self,
-                 info: userinfo.UserInfo,
-                 policy: using_policy.UsingPolicy):
+                 info: userinfo.UserInfo=userinfo.UserInfo(),
+                 policy: using_policy.UsingPolicy=using_policy.UsingPolicy(using_policy.UserType.DEFAULT.value)):
         """
         Инициализирует self.
         """
@@ -65,6 +67,34 @@ class User(warer.WarerObject):
             user_fields.UPDATED_AT.value: message.date,
             user_fields.CREATED_AT.value: message.date,
         }
+        return User(
+            userinfo.UserInfo(**args),
+            using_policy.UsingPolicy(
+                using_limits.UsingLimits.USING_POLITICS_LIMITS[user_type]
+            )
+        )
+    
+    @classmethod
+    def from_db(cls, db_user: dict) -> 'User':
+        """
+        Возвращает дефолтного пользователя по сообщению.
+        Не обращается к базе данных. Используется, когда
+        пользователь встречается впервые.
+        """
+        user_fields = userinfo.UserFields
+
+        user_type = using_limits.UserType.BOT \
+            if db_user.get(user_fields.IS_BOT.value) \
+            else using_limits.UserType.DEFAULT
+        args = {}
+
+        match = database.FieldsMatches.db_to_class(database.MatchesTypes.TG_USER.value)
+        for key, val in db_user.items():
+            class_key = match.get(key, key)
+            if class_key is None:
+                continue
+            args[class_key] = val
+
         return User(
             userinfo.UserInfo(**args),
             using_policy.UsingPolicy(
@@ -156,6 +186,18 @@ class User(warer.WarerObject):
         """
         return self.__dict__
 
+class UserCache:
+    def __init__(self):
+        self._last_sync = {}  # user_id -> User
+
+    def need_sync(self, user_id: int, ttl: int = 300) -> bool:
+        now = time.time()
+        user = self._last_sync.get(user_id, User())
+        last = user.info.get(userinfo.UserFields.UPDATED_AT.value)
+        if last is None or now - last > ttl:
+            # self._last_sync[user_id] = now
+            return True
+        return False
 
 
 if __name__ == "__main__":
@@ -174,5 +216,5 @@ if __name__ == "__main__":
         using_policy.UsingPolicy(
             using_limits.UserType.DEFAULT
         )
-    )
+    ).info
     print(user)

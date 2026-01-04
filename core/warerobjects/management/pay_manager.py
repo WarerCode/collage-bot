@@ -15,6 +15,8 @@ import enum
 from decimal import Decimal
 import telebot
 import dotenv
+import time
+import psycopg2.extras as ps_extras
 
 import core.warerobjects.warerobject as warer
 import core.warerobjects.data.userinfo as userinfo
@@ -46,7 +48,7 @@ class PaymentManager(warer.WarerObject):
     
     # Цены подписок в Telegram Stars (XTR)
     SUBSCRIPTION_PRICES = {
-        database.SubscriptionPlan.BASIC: 100,
+        database.SubscriptionPlan.BASIC: 1,
         database.SubscriptionPlan.PREMIUM: 300,
         database.SubscriptionPlan.PRO: 500,
     }
@@ -146,22 +148,6 @@ class PaymentManager(warer.WarerObject):
             # Валюта ДОЛЖНА быть "XTR" для Telegram Stars
             currency = PaymentCurrency.STARS.value
             amount = self.SUBSCRIPTION_PRICES[plan]
-
-            subscription_select_query, subscription_select_params = database.BaseQueries.select(
-                database.TableNames.SUBSCRIPTIONS.value,
-                conditions={"user_id": user_id, "plan_type": plan.value}
-            )
-
-            subscription = self.db.fetch_one(subscription_select_query, subscription_select_params)
-
-            if subscription is None:
-                subscriptions_insert_query, subscriptions_insert_params = database.BaseQueries.insert(
-                    database.TableNames.SUBSCRIPTIONS.value,
-                    data={
-                        "user_id": user_id, 
-                        "plan_type": plan.value
-                    }
-                )
             
             # Цены должны быть переданы в формате Bot API
             prices = [
@@ -177,13 +163,15 @@ class PaymentManager(warer.WarerObject):
             # Создаем запись о инвойсе в БД
             invoice_data = {
                 "user_id": user_id,
+                # "item_id": None,
+                "item_type": database.ProductTableNames.SUBSCRIPTIONS.value,
                 "amount": amount,
                 "currency": currency,
                 "method": PaymentMethod.STARS.value,
                 "status": PaymentStatus.PENDING.value,
-                "data": {
+                "data": ps_extras.Json({
                     "plan": plan.value,
-                },
+                }),
             }
             print(invoice_data)
             
@@ -352,9 +340,6 @@ class PaymentManager(warer.WarerObject):
             invoice_payload = json.loads(successful_payment.invoice_payload)
             payment_id = invoice_payload.get("payment_id")
             
-            invoice_payload = json.loads(invoice_payload)
-            plan = database.SubscriptionPlan(invoice_payload.get("plan"))
-            
             # Обновляем запись о платеже в БД
             update_data = {
                 "status": PaymentStatus.COMPLETED.value,
@@ -367,7 +352,11 @@ class PaymentManager(warer.WarerObject):
                 update_data,
                 {"id": payment_id, "user_id": user_id}
             )
-            self.db.execute(query, params)
+            payment = self.db.fetch_one(query, params)
+
+            item_id = payment.get("item_id")
+            item_type = payment.get("item_type")
+            plan = database.SubscriptionPlan(payment.get("data", {}).get("plan"))
             
             # Активируем подписку пользователя
             return self._activate_subscription(user_id, plan, telegram_payment_charge_id)
@@ -380,37 +369,66 @@ class PaymentManager(warer.WarerObject):
                 "message": "Ошибка обработки успешного платежа"
             }
 
-    def _activate_subscription(self, user_id: int, plan: database.SubscriptionPlan, 
-                             payment_charge_id: str) -> typing.Dict[str, typing.Any]:
+    def _activate_subscription(
+            self, 
+            user_id: int, 
+            plan: database.SubscriptionPlan, 
+            payment_id: str, 
+        ) -> typing.Dict[str, typing.Any]:
         """Активирует подписку пользователя после успешного платежа."""
         try:
+            subscription_select_query = f"""
+                SELECT *
+                FROM {database.TableNames.SUBSCRIPTIONS.value}
+                WHERE user_id = %s
+                AND plan_type = %s
+                ORDER BY end_date DESC
+                LIMIT 1;
+            """
+            subscription_select_params = [user_id, plan.value]
+
+            subscription = self.db.fetch_one(subscription_select_query, subscription_select_params)
+            now_time = datetime.datetime.now()
+
+            if not (subscription is None or subscription.get("end_date") <= now_time):
+                subscription_select_query, subscription_select_params = database.BaseQueries.update(
+                    database.TableNames.SUBSCRIPTIONS.value,
+                    data={
+                        "end_date": subscription.get("end_date") + datetime.timedelta(days=self.SUBSCRIPTION_DURATIONS[plan]),
+                        "is_active": True,
+                        "updated_at": now_time,
+                    },
+                    conditions={"id": subscription.get("id")}
+                )
+            else:
+                subscriptions_insert_query, subscriptions_insert_params = database.BaseQueries.insert(
+                    database.TableNames.SUBSCRIPTIONS.value,
+                    data={
+                        "user_id": user_id, 
+                        "plan_type": plan.value,
+                        "start_date": now_time,
+                        "end_date": now_time + datetime.timedelta(days=self.SUBSCRIPTION_DURATIONS[plan]),
+                    }
+                )
+                subscription = self.db.fetch_one(subscriptions_insert_query, subscriptions_insert_params)
+                
             duration_days = self.SUBSCRIPTION_DURATIONS[plan]
             start_date = datetime.datetime.now()
             end_date = start_date + datetime.timedelta(days=duration_days)
+
+            if subscription.get("id"):
+                # Обновляем запись о платеже в БД
+                payment_update_data = {
+                    "item_id": subscription.get("id"),
+                    "updated_at": datetime.datetime.now()
+                }
             
-            # Создаем запись о подписке
-            subscription_data = {
-                "user_id": user_id,
-                "plan": plan.value,
-                "start_date": start_date,
-                "end_date": end_date,
-                "payment_charge_id": payment_charge_id,
-                "is_active": True
-            }
-            
-            # Обновляем статус пользователя
-            user_update = {
-                userinfo.UserFields.IS_PREMIUM: True,
-                userinfo.UserFields.STATUS: "premium",
-                userinfo.UserFields.UPDATED_AT: datetime.datetime.now()
-            }
-            
-            query, params = database.BaseQueries.update(
-                database.TableNames.USERS,
-                user_update,
-                {userinfo.UserFields.USER_ID: user_id}
-            )
-            self.db.execute(query, params)
+                query, params = database.BaseQueries.update(
+                    database.TableNames.PAYMENTS,
+                    payment_update_data,
+                    {"id": payment_id, "user_id": user_id}
+                )
+                payment = self.db.fetch_one(query, params)
             
             return {
                 "success": True,

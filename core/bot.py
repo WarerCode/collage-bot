@@ -27,6 +27,8 @@ import core.warerobjects.content_types.collage as collage_module
 import core.warerobjects.politics.size_policy as size_policy
 import core.warerobjects.management.database as database
 import core.warerobjects.management.pay_manager as pay_manager
+import core.warerobjects.data.userinfo as userinfo
+import core.user as collage_user
 
 # Загрузка переменных окружения
 dotenv.load_dotenv("dev.env")
@@ -57,21 +59,18 @@ class CollageBot:
         user_collage_data: временное хранилище данных коллажей
     """
     
-    def __init__(self, token: str = None):
+    def __init__(self, token: str):
         """
         Инициализация бота.
         
         Аргументы:
             token (str): токен бота от BotFather
         """
-        self.token = token or os.getenv("BOT_API_KEY")
-        if not self.token:
-            raise ValueError("Токен бота не найден")
-            
         # Инициализация компонентов
         self.bot = telebot.TeleBot(self.token)
         self.db = self._init_database()
         self.payment_manager = pay_manager.PaymentManager(self.db, self.bot)
+        self.users_cache = collage_user.UserCache()
         
         # Временные хранилища
         self.user_images = {}  # user_id -> list[content_image.Image]
@@ -91,6 +90,16 @@ class CollageBot:
             password=os.getenv("DB_PASSWORD")
         )
     
+    def _wrap_handler(self, handler):
+        def wrapper(message):
+            db_user = database.ensure_user_exists(self.db, message.from_user, self.users_cache)
+            tg_data = database.FieldsMatches.db_to_class(database.MatchesTypes.TG_USER.value)
+            user = collage_user.User(
+                info=userinfo.UserInfo()
+            )
+            return handler(message)
+        return wrapper
+        
     def _register_custom_filters(self):
         """Регистрация кастомных фильтров."""
         self.bot.add_custom_filter(StateFilter(self.bot))
@@ -98,42 +107,44 @@ class CollageBot:
     def _register_handlers(self):
         """Регистрация всех обработчиков команд и сообщений."""
         # Основные команды
-        self.bot.message_handler(commands=['start'])(self._start_command)
-        self.bot.message_handler(commands=['help'])(self._help_command)
-        self.bot.message_handler(commands=['subscription'])(self._subscription_command)
-        self.bot.message_handler(commands=['history'])(self._history_command)
-        self.bot.message_handler(commands=['collage'])(self._collage_command)
-        self.bot.message_handler(commands=['cancel'])(self._cancel_command)
+        self.bot.message_handler(commands=['start'])(self._wrap_handler(self._start_command))
+        self.bot.message_handler(commands=['help'])(self._wrap_handler(self._help_command))
+        self.bot.message_handler(commands=['subscription'])(self._wrap_handler(self._subscription_command))
+        self.bot.message_handler(commands=['history'])(self._wrap_handler(self._history_command))
+        self.bot.message_handler(commands=['collage'])(self._wrap_handler(self._collage_command))
+        self.bot.message_handler(commands=['cancel'])(self._wrap_handler(self._cancel_command))
         
         # Обработчики состояний
         self.bot.message_handler(
             content_types=['photo'], 
             state=CollageStates.waiting_for_images
-        )(self._handle_image_input)
+        )(self._wrap_handler(self._handle_image_input))
         
         self.bot.message_handler(
             content_types=['text'],
             state=CollageStates.waiting_for_images
-        )(self._handle_text_input)
+        )(self._wrap_handler(self._handle_text_input))
         
         # Обработчики callback-запросов
-        self.bot.callback_query_handler(func=lambda call: call.data.startswith('size_'))(self._handle_size_selection)
-        self.bot.callback_query_handler(func=lambda call: call.data.startswith('effect_'))(self._handle_effect_selection)
-        self.bot.callback_query_handler(func=lambda call: call.data.startswith('payment_'))(self._handle_payment_callback)
-        self.bot.callback_query_handler(func=lambda call: call.data == 'process_collage')(self._process_collage)
-        self.bot.callback_query_handler(func=lambda call: call.data == 'back_to_sizes')(self._handle_back_to_sizes)
-        self.bot.callback_query_handler(func=lambda call: call.data == 'cancel_collage')(self._cancel_command)
+        self.bot.callback_query_handler(func=lambda call: call.data.startswith('size_'))(self._wrap_handler(self._handle_size_selection))
+        self.bot.callback_query_handler(func=lambda call: call.data.startswith('effect_'))(self._wrap_handler(self._handle_effect_selection))
+        self.bot.callback_query_handler(func=lambda call: call.data.startswith('payment_'))(self._wrap_handler(self._handle_payment_callback))
+        self.bot.callback_query_handler(func=lambda call: call.data == 'process_collage')(self._wrap_handler(self._process_collage))
+        self.bot.callback_query_handler(func=lambda call: call.data == 'back_to_sizes')(self._wrap_handler(self._handle_back_to_sizes))
+        self.bot.callback_query_handler(func=lambda call: call.data == 'cancel_collage')(self._wrap_handler(self._cancel_command))
         
         # Обработчики платежей
-        self.bot.pre_checkout_query_handler(func=lambda query: True)(self.payment_manager.handle_pre_checkout_query)
-        self.bot.message_handler(content_types=['successful_payment'])(self._handle_successful_payment)
+        self.bot.pre_checkout_query_handler(func=lambda query: True)(self._wrap_handler(self.payment_manager.handle_pre_checkout_query))
+        self.bot.message_handler(content_types=['successful_payment'])(self._wrap_handler(self._handle_successful_payment))
         
         # Обработчик неизвестных команд
-        self.bot.message_handler(func=lambda message: True)(self._handle_unknown_command)
+        self.bot.message_handler(func=lambda message: True)(self._wrap_handler(self._handle_unknown_command))
     
     def _start_command(self, message: telebot.types.Message):
         """Обработчик команды /start."""
         user = message.from_user
+
+        print(user.to_dict())
         
         # Регистрация пользователя в базе данных
         self._register_user(user)
@@ -523,7 +534,7 @@ class CollageBot:
         action = call.data.replace("payment_", "")
         
         if action in ["basic", "premium", "pro"]:
-            plan = pay_manager.SubscriptionPlan[action.upper()]
+            plan = database.SubscriptionPlan[action.upper()]
             result = self.payment_manager.create_subscription_invoice(user.id, plan, call.message.chat.id)
             print(result)
             

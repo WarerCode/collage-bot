@@ -14,14 +14,24 @@ class UserFields(enum.Enum):
     """
     Перечислитель, хранящий поля пользователя бота.
     """
+    # telegram fields
     USER_ID = "user_id"
-    USERNAME = "username"
     IS_BOT = "is_bot"
-    STATUS = "status"   # здесь имеется ввиду статус пользователя бота.
     FIRST_NAME = "first_name"
     LAST_NAME = "last_name"
+    USERNAME = "username"
     LANGUAGE_CODE = "language_code"
+    CAN_JOIN_GROUPS = "can_join_groups"
+    CAN_READ_ALL_GROUP_MESSAGES = "can_read_all_group_messages"
+    SUPPORTS_INLINE_QUERIES = "supports_inline_queries"
     IS_PREMIUM = "is_premium"
+    ADDED_TO_ATTACHMENT_MENU = "added_to_attachment_menu"
+    CAN_CONNECT_TO_BUSINESS = "can_connect_to_business"
+    HAS_MAIN_WEB_APP = "has_main_web_app"
+
+    # new fields
+    STATUS = "status"   # статус пользователя бота.
+    EMAIL = "email"   # спросить когда-нибудь у пользователя.
     FREE_COLLAGES_REMAINING = "free_collages_remaining"
     LAST_COLLAGE_DATE = "last_collage_date"
     UPDATED_AT = "updated_at"
