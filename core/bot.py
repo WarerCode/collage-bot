@@ -30,9 +30,6 @@ import core.warerobjects.management.pay_manager as pay_manager
 import core.warerobjects.data.userinfo as userinfo
 import core.user as collage_user
 
-# Загрузка переменных окружения
-dotenv.load_dotenv("dev.env")
-
 # Настройка логирования
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -67,7 +64,7 @@ class CollageBot:
             token (str): токен бота от BotFather
         """
         # Инициализация компонентов
-        self.bot = telebot.TeleBot(self.token)
+        self.bot = telebot.TeleBot(token)
         self.db = self._init_database()
         self.payment_manager = pay_manager.PaymentManager(self.db, self.bot)
         self.users_cache = collage_user.UserCache()
@@ -91,12 +88,10 @@ class CollageBot:
         )
     
     def _wrap_handler(self, handler):
-        def wrapper(message):
-            db_user = database.ensure_user_exists(self.db, message.from_user, self.users_cache)
-            tg_data = database.FieldsMatches.db_to_class(database.MatchesTypes.TG_USER.value)
-            user = collage_user.User(
-                info=userinfo.UserInfo()
-            )
+        def wrapper(message: telebot.types.Message):
+            print(message.from_user.to_dict())
+            user = database.ensure_user_exists(self.db, message.from_user, self.users_cache)
+            self.users_cache.update_user(message.from_user.id, user)
             return handler(message)
         return wrapper
         
@@ -134,7 +129,7 @@ class CollageBot:
         self.bot.callback_query_handler(func=lambda call: call.data == 'cancel_collage')(self._wrap_handler(self._cancel_command))
         
         # Обработчики платежей
-        self.bot.pre_checkout_query_handler(func=lambda query: True)(self._wrap_handler(self.payment_manager.handle_pre_checkout_query))
+        self.bot.pre_checkout_query_handler(func=lambda query: True)(self.payment_manager.handle_pre_checkout_query)
         self.bot.message_handler(content_types=['successful_payment'])(self._wrap_handler(self._handle_successful_payment))
         
         # Обработчик неизвестных команд
@@ -143,8 +138,6 @@ class CollageBot:
     def _start_command(self, message: telebot.types.Message):
         """Обработчик команды /start."""
         user = message.from_user
-
-        print(user.to_dict())
         
         # Регистрация пользователя в базе данных
         self._register_user(user)
@@ -564,6 +557,7 @@ class CollageBot:
         successful_payment = message.successful_payment
         
         result = self.payment_manager.handle_successful_payment(user.id, successful_payment)
+        print(result)
         
         if result["success"]:
             if os.getenv("DEBUG") == "True":
@@ -712,6 +706,9 @@ class CollageBot:
 
 
 if __name__ == "__main__":
+    # Загрузка переменных окружения
+    dotenv.load_dotenv("dev.env")
+
     # Запуск бота
-    bot = CollageBot()
+    bot = CollageBot(os.getenv("BOT_API_KEY"))
     bot.run()

@@ -49,8 +49,8 @@ class PaymentManager(warer.WarerObject):
     # Цены подписок в Telegram Stars (XTR)
     SUBSCRIPTION_PRICES = {
         database.SubscriptionPlan.BASIC: 1,
-        database.SubscriptionPlan.PREMIUM: 300,
-        database.SubscriptionPlan.PRO: 500,
+        database.SubscriptionPlan.PREMIUM: 1,
+        database.SubscriptionPlan.PRO: 1,
     }
     
     # Длительности подписок в днях (логика приложения, не API)
@@ -71,58 +71,6 @@ class PaymentManager(warer.WarerObject):
         super().__init__()
         self.db = database
         self.bot = bot
-
-    def _create_fake_pre_checkout_query(
-            self, 
-            user_id: str,
-            currency: str,
-            amount: float,
-            payload: typing.Dict,
-        ):
-        try:
-            pre_checkout_query = telebot.types.PreCheckoutQuery(
-                id="test_pre_checkout_id",
-                from_user=telebot.types.User(
-                    id=user_id,
-                    is_bot=False,
-                    first_name="Test"
-                ),
-                currency=currency,
-                total_amount=amount,
-                invoice_payload=payload
-            )
-
-            update = telebot.types.Update(
-                update_id=123456,
-                message=None,
-                edited_message=None,
-                channel_post=None,
-                edited_channel_post=None,
-                inline_query=None,
-                chosen_inline_result=None,
-                callback_query=None,
-                shipping_query=None,
-                pre_checkout_query=pre_checkout_query,
-                poll=None,
-                poll_answer=None,
-                my_chat_member=None,
-                chat_member=None,
-                chat_join_request=None,
-                message_reaction=None,
-                message_reaction_count=None,
-                removed_chat_boost=None,
-                chat_boost=None,
-                business_connection=None,
-                business_message=None,
-                edited_business_message=None,
-                deleted_business_messages=None,
-                purchased_paid_media=None,
-            )
-
-            new_updates = self.bot.process_new_updates([update])
-
-        except Exception as e:
-            print(e)
 
     def create_subscription_invoice(
             self, 
@@ -147,7 +95,7 @@ class PaymentManager(warer.WarerObject):
             
             # Валюта ДОЛЖНА быть "XTR" для Telegram Stars
             currency = PaymentCurrency.STARS.value
-            amount = self.SUBSCRIPTION_PRICES[plan]
+            amount = int(self.SUBSCRIPTION_PRICES[plan])
             
             # Цены должны быть переданы в формате Bot API
             prices = [
@@ -193,7 +141,7 @@ class PaymentManager(warer.WarerObject):
                     invoice_payload=payload,
                     currency=currency,
                     prices=prices,
-                    provider_token=provider_token
+                    provider_token=provider_token,
                 )
 
                 if os.getenv("DEBUG") == "True":
@@ -237,44 +185,6 @@ class PaymentManager(warer.WarerObject):
         """Обработка pre-checkout запроса."""
         try:
             print("In handle_pre_checkout_query")
-            
-            if os.getenv("DEBUG") == "True":
-                print("DEBUG MODE → emulating successful_payment")
-
-                now_ts = int(datetime.datetime.now().timestamp())
-
-                message_dict = {
-                    "message_id": 999,
-                    "date": now_ts,
-                    "chat": {
-                        "id": query.from_user.id,
-                        "type": "private"
-                    },
-                    "from": {
-                        "id": query.from_user.id,
-                        "is_bot": False,
-                        "first_name": query.from_user.first_name or "Test"
-                    },
-                    "successful_payment": {
-                        "currency": query.currency,
-                        "total_amount": query.total_amount,
-                        "invoice_payload": query.invoice_payload,
-                        "telegram_payment_charge_id": "test_charge_id_123",
-                        "provider_payment_charge_id": ""
-                    }
-                }
-
-                update_dict = {
-                    "update_id": 999999,
-                    "message": message_dict
-                }
-
-                # message = telebot.types.Message.de_json(message_dict)
-                update = telebot.types.Update.de_json(update_dict)
-
-                # self.bot.process_new_messages([message])
-                self.bot.process_new_updates([update])
-                return
     
             # Проверяем возможность обработать заказ
             success = True
@@ -294,27 +204,41 @@ class PaymentManager(warer.WarerObject):
             method = payment.get("method")
             status = payment.get("status")
 
-            if (plan is None or 
-                user_id != query.from_user.id or 
-                int(amount) != self.SUBSCRIPTION_PRICES[plan] or
-                PaymentCurrency(currency) is None or
-                PaymentMethod(method) is None or
-                PaymentStatus(status) is None
-                ):
+            checks = [
+                plan is None,
+                user_id != query.from_user.id,
+                int(amount) != self.SUBSCRIPTION_PRICES[plan],
+                PaymentCurrency(currency) is None,
+                PaymentMethod(method) is None,
+                PaymentStatus(status) is None,
+            ]
+
+            # print(checks)
+
+            # print(plan)
+            # print(user_id)
+            # print(query.from_user.id)
+            # print(int(amount))
+            # print(self.SUBSCRIPTION_PRICES[plan])
+            # print(PaymentCurrency(currency))
+            # print(PaymentMethod(method))
+            # print(PaymentStatus(status))
+
+            if any(checks):
                 success = False
                 error_message = "Некорректные данные платежа"
             
-            if not success:
-                self.bot.answer_pre_checkout_query(
-                    query.id, 
-                    ok=False,
-                    error_message=error_message or "Не удалось обработать заказ"
-                )
-            else:
+            if success:
                 print("In success branch")
                 self.bot.answer_pre_checkout_query(
                     query.id, 
                     ok=True
+                )
+            else:
+                self.bot.answer_pre_checkout_query(
+                    query.id, 
+                    ok=False,
+                    error_message=error_message or "Не удалось обработать заказ"
                 )
             
         except Exception as e:
@@ -335,7 +259,6 @@ class PaymentManager(warer.WarerObject):
         try:
             # Извлекаем критически важные данные из платежа
             telegram_payment_charge_id = successful_payment.telegram_payment_charge_id
-            total_amount = successful_payment.total_amount
 
             invoice_payload = json.loads(successful_payment.invoice_payload)
             payment_id = invoice_payload.get("payment_id")
@@ -346,7 +269,6 @@ class PaymentManager(warer.WarerObject):
                 "telegram_payment_charge_id": telegram_payment_charge_id,
                 "updated_at": datetime.datetime.now()
             }
-            
             query, params = database.BaseQueries.update(
                 database.TableNames.PAYMENTS,
                 update_data,
@@ -354,12 +276,26 @@ class PaymentManager(warer.WarerObject):
             )
             payment = self.db.fetch_one(query, params)
 
-            item_id = payment.get("item_id")
-            item_type = payment.get("item_type")
             plan = database.SubscriptionPlan(payment.get("data", {}).get("plan"))
             
             # Активируем подписку пользователя
-            return self._activate_subscription(user_id, plan, telegram_payment_charge_id)
+            result = self._activate_subscription(user_id, plan)
+
+            if result.get("item") and result.get("item")["id"]:
+                update_data = {
+                    "item_id": result.get("item")["id"],
+                    "updated_at": datetime.datetime.now()
+                }
+                
+                query, params = database.BaseQueries.update(
+                    database.TableNames.PAYMENTS,
+                    update_data,
+                    {"id": payment_id, "user_id": user_id}
+                )
+                payment = self.db.fetch_one(query, params)
+
+            return result
+
             
         except Exception as e:
             print(e)
@@ -373,7 +309,6 @@ class PaymentManager(warer.WarerObject):
             self, 
             user_id: int, 
             plan: database.SubscriptionPlan, 
-            payment_id: str, 
         ) -> typing.Dict[str, typing.Any]:
         """Активирует подписку пользователя после успешного платежа."""
         try:
@@ -389,57 +324,93 @@ class PaymentManager(warer.WarerObject):
 
             subscription = self.db.fetch_one(subscription_select_query, subscription_select_params)
             now_time = datetime.datetime.now()
+            duration_days = self.SUBSCRIPTION_DURATIONS[plan]
 
             if not (subscription is None or subscription.get("end_date") <= now_time):
-                subscription_select_query, subscription_select_params = database.BaseQueries.update(
-                    database.TableNames.SUBSCRIPTIONS.value,
+                end_date = subscription.get("end_date") + datetime.timedelta(days=duration_days)
+                subscription_query, subscription_params = database.BaseQueries.update(
+                    database.TableNames.SUBSCRIPTIONS,
                     data={
-                        "end_date": subscription.get("end_date") + datetime.timedelta(days=self.SUBSCRIPTION_DURATIONS[plan]),
+                        "end_date": end_date,
                         "is_active": True,
                         "updated_at": now_time,
                     },
                     conditions={"id": subscription.get("id")}
                 )
+                subscription = self.db.fetch_one(subscription_query, subscription_params)
             else:
+                end_date = now_time + datetime.timedelta(days=duration_days)
                 subscriptions_insert_query, subscriptions_insert_params = database.BaseQueries.insert(
-                    database.TableNames.SUBSCRIPTIONS.value,
+                    database.TableNames.SUBSCRIPTIONS,
                     data={
                         "user_id": user_id, 
                         "plan_type": plan.value,
                         "start_date": now_time,
-                        "end_date": now_time + datetime.timedelta(days=self.SUBSCRIPTION_DURATIONS[plan]),
+                        "is_active": True,
+                        "end_date": end_date,
                     }
                 )
                 subscription = self.db.fetch_one(subscriptions_insert_query, subscriptions_insert_params)
-                
-            duration_days = self.SUBSCRIPTION_DURATIONS[plan]
-            start_date = datetime.datetime.now()
-            end_date = start_date + datetime.timedelta(days=duration_days)
-
-            if subscription.get("id"):
-                # Обновляем запись о платеже в БД
-                payment_update_data = {
-                    "item_id": subscription.get("id"),
-                    "updated_at": datetime.datetime.now()
-                }
-            
-                query, params = database.BaseQueries.update(
-                    database.TableNames.PAYMENTS,
-                    payment_update_data,
-                    {"id": payment_id, "user_id": user_id}
-                )
-                payment = self.db.fetch_one(query, params)
             
             return {
                 "success": True,
+                "item": subscription,
                 "user_id": user_id,
                 "plan": plan.value,
-                "start_date": start_date.isoformat(),
-                "end_date": end_date.isoformat(),
+                "end_date": end_date.__str__(),
                 "message": "Подписка успешно активирована"
             }
             
         except Exception as e:
+            print(e)
+            return {
+                "success": False, 
+                "error": str(e),
+                "message": "Ошибка активации подписки"
+            }
+        
+    def _deactivate_subscription(
+            self, 
+            user_id: int, 
+            item_id: int, 
+        ) -> typing.Dict[str, typing.Any]:
+        """Активирует подписку пользователя после успешного платежа."""
+        try:
+            subscription_select_query, subscription_select_params = database.BaseQueries.select(
+                table_name=database.TableNames.SUBSCRIPTIONS,
+                conditions={"id": item_id}
+            )
+
+            subscription = self.db.fetch_one(subscription_select_query, subscription_select_params)
+
+            if subscription is None:
+                raise ValueError("Объект деактивации отсутствует")
+
+            now_time = datetime.datetime.now()
+            plan = subscription.get("data", {}).get("plan")
+            duration_days = self.SUBSCRIPTION_DURATIONS[plan]
+            end_date = subscription.get("end_date") - datetime.timedelta(days=duration_days)
+
+            subscription_query, subscription_params = database.BaseQueries.update(
+                database.TableNames.SUBSCRIPTIONS,
+                data={
+                    "end_date": end_date,
+                    # "is_active": False,
+                    "updated_at": now_time,
+                },
+                conditions={"id": item_id}
+            )
+            subscription = self.db.fetch_one(subscription_query, subscription_params)
+            
+            return {
+                "success": True,
+                "item": subscription,
+                "user_id": user_id,
+                "message": "Подписка успешно деактивирована"
+            }
+            
+        except Exception as e:
+            print(e)
             return {
                 "success": False, 
                 "error": str(e),
@@ -457,13 +428,14 @@ class PaymentManager(warer.WarerObject):
                 # Обновляем статус платежа в БД
                 update_data = {
                     "status": PaymentStatus.REFUNDED.value,
-                    "refunded_at": datetime.datetime.now()
+                    # "refunded_at": datetime.datetime.now(),
+                    "updated_at": datetime.datetime.now(),
                 }
                 
                 query, params = database.BaseQueries.update(
                     database.TableNames.PAYMENTS,
                     update_data,
-                    {"telegram_payment_charge_id": payment_charge_id}
+                    {"user_id": user_id, "telegram_payment_charge_id": payment_charge_id}
                 )
                 self.db.execute(query, params)
                 

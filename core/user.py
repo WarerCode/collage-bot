@@ -6,6 +6,7 @@
 см. подробнее в database.py
 """
 
+import datetime
 import time
 import telebot.types as types
 
@@ -15,6 +16,7 @@ import core.warerobjects.politics.using_policy as using_policy
 import core.warerobjects.politics.using_limits as using_limits
 import core.warerobjects.data.userinfo as userinfo
 
+UserType = using_limits.UserType
 
 class User(warer.WarerObject):
     """
@@ -29,7 +31,7 @@ class User(warer.WarerObject):
     
     def __init__(self,
                  info: userinfo.UserInfo=userinfo.UserInfo(),
-                 policy: using_policy.UsingPolicy=using_policy.UsingPolicy(using_policy.UserType.DEFAULT.value)):
+                 policy: using_policy.UsingPolicy=using_policy.UsingPolicy(UserType.DEFAULT)):
         """
         Инициализирует self.
         """
@@ -46,14 +48,15 @@ class User(warer.WarerObject):
         """
         tg_user = message.from_user
         user_fields = userinfo.UserFields
-        user_type = using_limits.UserType.BOT \
+
+        user_type = UserType.BOT \
             if tg_user.is_bot \
-            else using_limits.UserType.DEFAULT
+            else UserType.DEFAULT
         args = {
             user_fields.USER_ID.value: tg_user.id,
             user_fields.USERNAME.value: tg_user.username,
             user_fields.IS_BOT.value: tg_user.is_bot,
-            user_fields.STATUS.value: using_limits.UserType.DEFAULT,
+            user_fields.STATUS.value: UserType.DEFAULT,
             user_fields.FIRST_NAME.value: tg_user.first_name,
             user_fields.LAST_NAME.value: tg_user.last_name,
             user_fields.LANGUAGE_CODE.value: tg_user.language_code,
@@ -69,9 +72,7 @@ class User(warer.WarerObject):
         }
         return User(
             userinfo.UserInfo(**args),
-            using_policy.UsingPolicy(
-                using_limits.UsingLimits.USING_POLITICS_LIMITS[user_type]
-            )
+            using_policy.UsingPolicy(user_type)
         )
     
     @classmethod
@@ -83,12 +84,12 @@ class User(warer.WarerObject):
         """
         user_fields = userinfo.UserFields
 
-        user_type = using_limits.UserType.BOT \
+        user_type = UserType.BOT \
             if db_user.get(user_fields.IS_BOT.value) \
-            else using_limits.UserType.DEFAULT
+            else UserType.DEFAULT
         args = {}
 
-        match = database.FieldsMatches.db_to_class(database.MatchesTypes.TG_USER.value)
+        match = database.FieldsMatches.db_to_class(database.MatchesTypes.TG_USER)
         for key, val in db_user.items():
             class_key = match.get(key, key)
             if class_key is None:
@@ -97,9 +98,7 @@ class User(warer.WarerObject):
 
         return User(
             userinfo.UserInfo(**args),
-            using_policy.UsingPolicy(
-                using_limits.UsingLimits.USING_POLITICS_LIMITS[user_type]
-            )
+            using_policy.UsingPolicy(user_type)
         )
 
     def decrement_limits(self, limit: str, dec: int=1, reset: bool=False):
@@ -128,7 +127,7 @@ class User(warer.WarerObject):
             """Здесь полностью обновляются ограничения."""
             self.policy = using_limits.UsingLimits.USING_POLITICS_LIMITS[user_type]
 
-    def change_status(self, new_status: using_limits.UserType):
+    def change_status(self, new_status: UserType):
         """
         Заменяет статус пользователя и обновляет лимиты использования.
         """
@@ -139,7 +138,7 @@ class User(warer.WarerObject):
         """
         Метод для бана пользователя!!!
         """
-        self.change_status(using_limits.UserType.BANNED)
+        self.change_status(UserType.BANNED)
 
     def update_timestamp(self):
         """
@@ -188,16 +187,28 @@ class User(warer.WarerObject):
 
 class UserCache:
     def __init__(self):
-        self._last_sync = {}  # user_id -> User
-
+        self._users = {}  # user_id -> User
+    
     def need_sync(self, user_id: int, ttl: int = 300) -> bool:
-        now = time.time()
-        user = self._last_sync.get(user_id, User())
-        last = user.info.get(userinfo.UserFields.UPDATED_AT.value)
-        if last is None or now - last > ttl:
-            # self._last_sync[user_id] = now
+        now = datetime.datetime.now()
+        user = self._users.get(user_id)
+
+        if user is None:
             return True
-        return False
+
+        last = user.info.to_dict().get(userinfo.UserFields.UPDATED_AT.value)
+
+        if last is None:
+            return True
+
+        return now - last > datetime.timedelta(seconds=ttl)
+    
+    @property
+    def users(self):
+        return self._users
+    
+    def update_user(self, id: int, user: User):
+        self._users[id] = user
 
 
 if __name__ == "__main__":
@@ -214,7 +225,7 @@ if __name__ == "__main__":
             is_premium=True
         ),
         using_policy.UsingPolicy(
-            using_limits.UserType.DEFAULT
+            UserType.DEFAULT
         )
     ).info
     print(user)

@@ -18,41 +18,39 @@ import core.warerobjects.data.userinfo as userinfo
 import core.user as collage_user
 
 class MatchesTypes(enum.Enum):
-        TG_USER = "tg_user"
+    TG_USER = "tg_user"
 
-class MatchesItems(enum.Enum):
-    MatchesTypes.TG_USER = {
-        'id': userinfo.UserFields.USER_ID.value, 
-        'is_bot': userinfo.UserFields.IS_BOT.value, 
-        'first_name': userinfo.UserFields.FIRST_NAME.value, 
-        'last_name': userinfo.UserFields.LAST_NAME.value, 
-        'username': userinfo.UserFields.USERNAME.value, 
-        'language_code': userinfo.UserFields.LANGUAGE_CODE.value, 
-        'can_join_groups': userinfo.UserFields.CAN_JOIN_GROUPS.value, 
-        'can_read_all_group_messages': userinfo.UserFields.CAN_READ_ALL_GROUP_MESSAGES.value, 
-        'supports_inline_queries': userinfo.UserFields.SUPPORTS_INLINE_QUERIES.value, 
-        'is_premium': userinfo.UserFields.IS_PREMIUM.value, 
-        'added_to_attachment_menu': userinfo.UserFields.ADDED_TO_ATTACHMENT_MENU.value, 
-        'can_connect_to_business': userinfo.UserFields.CAN_CONNECT_TO_BUSINESS.value, 
-        'has_main_web_app': userinfo.UserFields.HAS_MAIN_WEB_APP.value
+    def __str__(self):
+        return self.value
+
+TG_USER_FIELD_MAP  = {
+    'id': userinfo.UserFields.USER_ID.value, 
+    'is_bot': userinfo.UserFields.IS_BOT.value, 
+    'first_name': userinfo.UserFields.FIRST_NAME.value, 
+    'last_name': userinfo.UserFields.LAST_NAME.value, 
+    'username': userinfo.UserFields.USERNAME.value, 
+    'language_code': userinfo.UserFields.LANGUAGE_CODE.value, 
+    'can_join_groups': userinfo.UserFields.CAN_JOIN_GROUPS.value, 
+    'can_read_all_group_messages': userinfo.UserFields.CAN_READ_ALL_GROUP_MESSAGES.value, 
+    'supports_inline_queries': userinfo.UserFields.SUPPORTS_INLINE_QUERIES.value, 
+    'is_premium': userinfo.UserFields.IS_PREMIUM.value, 
+    'added_to_attachment_menu': userinfo.UserFields.ADDED_TO_ATTACHMENT_MENU.value, 
+    'can_connect_to_business': userinfo.UserFields.CAN_CONNECT_TO_BUSINESS.value, 
+    'has_main_web_app': userinfo.UserFields.HAS_MAIN_WEB_APP.value
+}
+    
+class FieldsMatches:
+    MAPS = {
+        MatchesTypes.TG_USER: TG_USER_FIELD_MAP
     }
 
-class FieldsMatches:
-    """
-    Допустимые типы базы данных
-    """
+    @classmethod
+    def class_to_db(cls, type_: MatchesTypes):
+        return cls.MAPS[type_]
 
-    def __init__(self):
-        pass
-
-    def class_to_db(type: MatchesTypes):
-        return MatchesItems[type].value
-    
-    def db_to_class(type: MatchesTypes):
-        data = {}
-        for key, val in MatchesItems[type].value:
-            data[val] = key
-        return data
+    @classmethod
+    def db_to_class(cls, type_: MatchesTypes):
+        return {v: k for k, v in cls.MAPS[type_].items()}
 
 class DBTypes(enum.Enum):
     """
@@ -61,18 +59,21 @@ class DBTypes(enum.Enum):
     SQLITE = "sqlite"
     POSTGRESQL = "postgresql"
 
+    def __str__(self):
+        return self.value
+
 class TableNames(enum.Enum):
     """
     Список названий таблиц базы данных
     """
-    USERS= "users"
-    IMAGES= "images"
-    TAGS= "tags"
-    IMAGE_TAG_RELATIONS= "image_tag_relations"
-    PAYMENTS= "payments"
+    USERS = "users"
+    IMAGES = "images"
+    TAGS = "tags"
+    IMAGE_TAG_RELATIONS = "image_tag_relations"
+    PAYMENTS = "payments"
     # По умолчанию поле price для всех таблиц *_PLANS указывается в валюте XTR
-    # SUBSCRIPTION_PLANS= "subscription_plans"
-    SUBSCRIPTIONS= "subscriptions"
+    # SUBSCRIPTION_PLANS = "subscription_plans"
+    SUBSCRIPTIONS = "subscriptions"
 
     def __str__(self):
         return self.value
@@ -82,7 +83,7 @@ class ProductTableNames(enum.Enum):
     Список названий таблиц базы данных
     
     """
-    SUBSCRIPTIONS= TableNames.SUBSCRIPTIONS.value
+    SUBSCRIPTIONS = TableNames.SUBSCRIPTIONS.value
 
     def __str__(self):
         return self.value
@@ -93,11 +94,14 @@ class SubscriptionPlan(enum.Enum):
     PREMIUM = "premium" 
     PRO = "pro"
 
+    def __str__(self):
+        return self.value
+
 class TableConfig(abc.ABC):
     """Конфигурация таблиц с информацией о первичных ключах"""
     
     TABLE_PRIMARY_KEYS = {
-        TableNames.USERS: (userinfo.UserFields.USER_ID,),
+        TableNames.USERS: (userinfo.UserFields.USER_ID.value,),
         TableNames.IMAGES: ("id",),
         TableNames.TAGS: ("id",),
         TableNames.IMAGE_TAG_RELATIONS: ("image_id", "tag_id"),
@@ -127,16 +131,22 @@ class TableQueries(enum.Enum):
     CREATE_TABLE_USERS = f"""
         CREATE TABLE IF NOT EXISTS {TableNames.USERS.value} (
             {userinfo.UserFields.USER_ID} INTEGER PRIMARY KEY,
-            {userinfo.UserFields.USERNAME} VARCHAR(100),
             {userinfo.UserFields.IS_BOT} BOOLEAN DEFAULT FALSE,
-
-            {userinfo.UserFields.STATUS} VARCHAR(100),
-            {userinfo.UserFields.EMAIL} VARCHAR(200),
-            
             {userinfo.UserFields.FIRST_NAME} VARCHAR(100),
             {userinfo.UserFields.LAST_NAME} VARCHAR(100),
+            {userinfo.UserFields.USERNAME} VARCHAR(100),
             {userinfo.UserFields.LANGUAGE_CODE} VARCHAR(10),
+            {userinfo.UserFields.CAN_JOIN_GROUPS} BOOLEAN DEFAULT FALSE,
+            {userinfo.UserFields.CAN_READ_ALL_GROUP_MESSAGES} BOOLEAN DEFAULT FALSE,
+            {userinfo.UserFields.SUPPORTS_INLINE_QUERIES} BOOLEAN DEFAULT FALSE,
             {userinfo.UserFields.IS_PREMIUM} BOOLEAN DEFAULT FALSE,
+            {userinfo.UserFields.ADDED_TO_ATTACHMENT_MENU} BOOLEAN DEFAULT FALSE,
+            {userinfo.UserFields.CAN_CONNECT_TO_BUSINESS} BOOLEAN DEFAULT FALSE,
+            {userinfo.UserFields.HAS_MAIN_WEB_APP} BOOLEAN DEFAULT FALSE,
+
+            
+            {userinfo.UserFields.STATUS} VARCHAR(100),
+            {userinfo.UserFields.EMAIL} VARCHAR(200),
             {userinfo.UserFields.FREE_COLLAGES_REMAINING} INTEGER DEFAULT %s,
             {userinfo.UserFields.LAST_COLLAGE_DATE} DATE,
             {userinfo.UserFields.UPDATED_AT} TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -214,9 +224,12 @@ class TableQueries(enum.Enum):
             is_active BOOLEAN DEFAULT FALSE, -- должна быть у всех оплачиваемых элементов
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES {TableNames.USERS.value}(id) ON DELETE CASCADE
+            FOREIGN KEY (user_id) REFERENCES {TableNames.USERS.value}(user_id) ON DELETE CASCADE
         );
     """
+
+    def __str__(self):
+        return self.value
 
 class BaseQueries(abc.ABC):
     """
@@ -270,6 +283,8 @@ class BaseQueries(abc.ABC):
         """
         keys = ", ".join(data.keys())
         pk = TableConfig.get_primary_key(table_name)
+        if not pk:
+            raise ValueError(f"No primary key defined for table {table_name}")
         conflict_clause = ', '.join(pk)
 
         # if isinstance(pk, list):
@@ -282,7 +297,8 @@ class BaseQueries(abc.ABC):
             INSERT INTO
             {table_name} ({keys})
             VALUES ({cls.makePlaceholders(len(data))})
-            ON CONFLICT ({conflict_clause}) DO NOTHING;
+            ON CONFLICT ({conflict_clause}) DO NOTHING
+            RETURNING *;
         """
         return query, list(data.values())
     
@@ -307,11 +323,14 @@ class BaseQueries(abc.ABC):
         params = []
         if conditions:
             query = f"""
-                SELECT {columns} FROM {table_name} WHERE {cls.makeCondition(conditions)};
+                SELECT {columns} 
+                FROM {table_name} 
+                WHERE {cls.makeCondition(conditions)};
             """
         else:
             query = f"""
-                SELECT {columns} FROM {table_name};
+                SELECT {columns} 
+                FROM {table_name};
             """
 
         return query, params
@@ -336,11 +355,16 @@ class BaseQueries(abc.ABC):
         params = []
         if conditions:
             query = f"""
-                UPDATE {table_name} SET {cls.makeCondition(data, ",")} WHERE {cls.makeCondition(conditions)};
+                UPDATE {table_name} 
+                SET {cls.makeCondition(data, ",")} 
+                WHERE {cls.makeCondition(conditions)}
+                RETURNING *;
             """
         else:
             query = f"""
-                UPDATE {table_name} SET {cls.makeCondition(data, ",")};
+                UPDATE {table_name} 
+                SET {cls.makeCondition(data, ",")}
+                RETURNING *;
             """
         return query, params
     
@@ -362,11 +386,16 @@ class BaseQueries(abc.ABC):
         params = []
         if conditions:
             query = f"""
-                DELETE FROM {table_name} WHERE {cls.makeCondition(conditions)};
+                DELETE 
+                FROM {table_name} 
+                WHERE {cls.makeCondition(conditions)}
+                RETURNING *;
             """
         else:
             query = f"""
-                DELETE FROM {table_name};
+                DELETE 
+                FROM {table_name}
+                RETURNING *;
             """
         return query, params
     
@@ -385,6 +414,7 @@ class Database(warer.WarerObject):
             (TableQueries.CREATE_TABLE_IMAGE_TAG_RELATIONS.value, None),
             (TableQueries.CREATE_TABLE_PAYMENTS.value, None),
             # (TableQueries.CREATE_TABLE_SUBSCRIPTION_PLANS.value, None),
+            (TableQueries.CREATE_TABLE_SUBSCRIPTIONS.value, None),
         ]
 
         self.execute_many(queries_list)
@@ -497,35 +527,50 @@ def ensure_user_exists(
         cache: collage_user.UserCache
     ) -> collage_user.User:
     if not cache.need_sync(tg_user.id):
-        return
+        return cache.users.get(tg_user.id, collage_user.User())
 
     tg_data = {}
 
-    user_pk = TableConfig.get_primary_key(TableNames.USERS.value)
+    user_pk = TableConfig.get_primary_key(TableNames.USERS)
+    if not user_pk:
+        raise ValueError(f"No primary key defined for table {TableNames.USERS}")
+    match = FieldsMatches.class_to_db(MatchesTypes.TG_USER)
 
-    for field, val in tg_user.to_dict():
-        db_field = TgUserFieldsMatches.get(field)
-        if db_field is None or db_field in user_pk:
+    for field, val in tg_user.to_dict().items():
+        db_field = match.get(field)
+        print(db_field)
+        if db_field is None or db_field in user_pk or val is None:
             continue
         tg_data[db_field] = val
 
     backend_data = {
-        userinfo.UserFields.UPDATED_AT: datetime.datetime.now()
+        userinfo.UserFields.UPDATED_AT.value: datetime.datetime.now()
     }
 
+    print(db.connection_params)
+
     data = tg_data | backend_data
+    print(data)
 
     query, params = BaseQueries.select(TableNames.USERS, conditions={user_pk[0]: tg_user.id})
     db_user = db.fetch_one(query, params)
+    print(db_user)
 
     if db_user:
+        print("if db_user")
         query, params = BaseQueries.update(TableNames.USERS, data=data, conditions={user_pk[0]: tg_user.id})
-        user = db.execute(query, params)
+        user = db.fetch_one(query, params)
+        print(user)
     else:
+        print("else db_user")
+        print((data | {user_pk[0]: tg_user.id}))
         query, params = BaseQueries.insert(TableNames.USERS, data=(data | {user_pk[0]: tg_user.id}))
-        user = db.execute(query, params)
+        user = db.fetch_one(query, params)
+        print(user)
 
-    return user
+    res_user = collage_user.User.from_db(user)
+
+    return res_user
 
 
 if __name__ == "__main__":
