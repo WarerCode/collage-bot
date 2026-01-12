@@ -107,6 +107,7 @@ class CollageBot:
         self.bot.message_handler(commands=['subscription'])(self._wrap_handler(self._subscription_command))
         self.bot.message_handler(commands=['history'])(self._wrap_handler(self._history_command))
         self.bot.message_handler(commands=['collage'])(self._wrap_handler(self._collage_command))
+        self.bot.message_handler(commands=['refund'])(self._wrap_handler(self._refund_command))
         self.bot.message_handler(commands=['cancel'])(self._wrap_handler(self._cancel_command))
         
         # Обработчики состояний
@@ -129,7 +130,7 @@ class CollageBot:
         self.bot.callback_query_handler(func=lambda call: call.data == 'cancel_collage')(self._wrap_handler(self._cancel_command))
         
         # Обработчики платежей
-        self.bot.pre_checkout_query_handler(func=lambda query: True)(self.payment_manager.handle_pre_checkout_query)
+        self.bot.pre_checkout_query_handler(func=lambda query: True)(self._handle_pre_checkout)
         self.bot.message_handler(content_types=['successful_payment'])(self._wrap_handler(self._handle_successful_payment))
         
         # Обработчик неизвестных команд
@@ -234,6 +235,29 @@ class CollageBot:
         )
         
         self.bot.set_state(user.id, CollageStates.waiting_for_images)
+
+    def _refund_command(self, message: telebot.types.Message):
+        """Обработчик команды /collage - начало создания коллажа."""
+        user = message.from_user
+        payment_charge_id = message.text.split()[1].strip()
+        print(payment_charge_id)
+
+        result = self.payment_manager.process_refund(user.id, payment_charge_id)
+        
+        if result.get("success"):
+            instruction_text = (
+                "🎨 <b>Возврат прошёл успешно</b>\n\n"
+            )
+        else:
+            instruction_text = (
+                "🎨 <b>Возврат прошёл неуспешно</b>\n\n"
+            )
+        
+        self.bot.send_message(
+            chat_id=message.chat.id,
+            text=instruction_text,
+            parse_mode='HTML'
+        )
     
     def _handle_image_input(self, message: telebot.types.Message):
         """Обработка загружаемых изображений."""
@@ -550,8 +574,34 @@ class CollageBot:
         elif action == "history":
             self._history_command(call.message)
     
+    def _handle_pre_checkout(self, query: telebot.types.PreCheckoutQuery):
+        """
+            Обработка pre-checkout запроса.
+            
+            Аргументы:
+                query (telebot.types.PreCheckoutQuery): объект pre-checkout запроса
+                
+            Возвращает:
+                None
+        """
+
+        result = self.payment_manager.handle_pre_checkout_query(query)
+
+        if result.get("success"):
+            self.bot.answer_pre_checkout_query(
+                query.id, 
+                ok=True
+            )
+        else:
+            self.bot.answer_pre_checkout_query(
+                query.id, 
+                ok=False,
+                error_message=result.get("message")
+            )
+
     def _handle_successful_payment(self, message: telebot.types.Message):
         """Обработка успешного платежа."""
+
         print("In _handle_successful_payment")
         user = message.from_user
         successful_payment = message.successful_payment
@@ -560,38 +610,23 @@ class CollageBot:
         print(result)
         
         if result["success"]:
-            if os.getenv("DEBUG") == "True":
-                self.bot.send_message(
-                    chat_id=message.chat.id,
-                    text="🎉 [DEBUG] Подписка успешно активирована!"
-                )
-            else:
-                self.bot.reply_to(
-                    message,
-                    f"🎉 <b>Поздравляем!</b>\n\n"
-                    f"Подписка {result['plan']} успешно активирована!\n"
-                    f"Действует до: {result['end_date'][:10]}\n\n"
-                    f"Теперь вам доступны все премиум-функции! 🚀",
-                    parse_mode='HTML'
-                )
+            self.bot.reply_to(
+                message,
+                f"🎉 <b>Поздравляем!</b>\n\n"
+                f"Подписка {result['plan']} успешно активирована!\n"
+                f"Действует до: {result['end_date'][:10]}\n\n"
+                f"Теперь вам доступны все премиум-функции! 🚀",
+                parse_mode='HTML'
+            )
         else:
-            if os.getenv("DEBUG") == "True":
-                self.bot.send_message(
-                    chat_id=message.chat.id,
-                    text="🎉 [DEBUG] Подписка НЕ активирована!"
-                )
-            else:
-                self.bot.reply_to(
-                    message,
-                    "❌ Произошла ошибка при активации подписки. "
-                    "Свяжитесь с поддержкой.",
-                    parse_mode='HTML'
-                )
+            self.bot.reply_to(
+                message,
+                "❌ Произошла ошибка при активации подписки. "
+                "Свяжитесь с поддержкой.",
+                parse_mode='HTML'
+            )
     
-    def _handle_pre_checkout(self, query: telebot.types.PreCheckoutQuery):
-        """Обработка pre-checkout запроса."""
-        # Всегда подтверждаем запрос (в реальном боте нужно добавить валидацию)
-        self.bot.answer_pre_checkout_query(query.id, ok=True)
+    
     
     def _history_command(self, message: telebot.types.Message):
         """Обработчик команды /history - история платежей."""

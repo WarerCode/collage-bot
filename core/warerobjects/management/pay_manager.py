@@ -1,29 +1,27 @@
 """
-Менеджер платежей и подписок для Telegram бота, соответствующий официальному Bot API для Telegram Stars.
+Менеджер платежей и подписок для Telegram бота.
 
 Основные возможности:
 - Создание счетов (инвойсов) через sendInvoice и createInvoiceLink.
 - Обработка предварительных проверок (pre-checkout) и успешных платежей.
-- Управление подписками на основе разовых платежей.
-- Возврат средств (refund).
+- Управление подписками.
+- Возврат средств.
 """
 import datetime
 import json
 import os
 import typing
 import enum
-from decimal import Decimal
 import telebot
 import dotenv
 import time
 import psycopg2.extras as ps_extras
 
 import core.warerobjects.warerobject as warer
-import core.warerobjects.data.userinfo as userinfo
 import core.warerobjects.management.database as database
 
 class PaymentType(enum.Enum):
-    """Планы подписок с ценами в Telegram Stars."""
+    """Планы подписок  в системе."""
     SUBSCRIPTION = "subscription"
 
 class PaymentStatus(enum.Enum):
@@ -34,26 +32,32 @@ class PaymentStatus(enum.Enum):
     REFUNDED = "refunded"
 
 class PaymentCurrency(enum.Enum):
-    """Статусы платежей в системе."""
+    """Валюты платежей в системе."""
     STARS = "XTR"
 
 class PaymentMethod(enum.Enum):
-    """Статусы платежей в системе."""
+    """Методы оплаты в системе."""
     STARS = "stars"
 
 class PaymentManager(warer.WarerObject):
     """
-    Менеджер платежей, реализующий логику в соответствии с Telegram Bot API.
+    Класс - менеджер платежей, реализующий логику в соответствии с Telegram Bot API.
+
+    Атрибуты класса:
+        SUBSCRIPTION_PRICES: Цены подписок в Telegram Stars (XTR)
+        SUBSCRIPTION_DURATIONS: Длительности подписок в днях
+
+    Атрибуты экземпляра:
+        db: объект базы данных типа database.Database
+        bot: объект телеграм бота типа telebot.TeleBot
     """
     
-    # Цены подписок в Telegram Stars (XTR)
     SUBSCRIPTION_PRICES = {
         database.SubscriptionPlan.BASIC: 1,
         database.SubscriptionPlan.PREMIUM: 1,
         database.SubscriptionPlan.PRO: 1,
     }
     
-    # Длительности подписок в днях (логика приложения, не API)
     SUBSCRIPTION_DURATIONS = {
         database.SubscriptionPlan.BASIC: 30,
         database.SubscriptionPlan.PREMIUM: 30,  
@@ -66,7 +70,7 @@ class PaymentManager(warer.WarerObject):
         
         Аргументы:
             database (database.Database): объект базы данных
-            bot_token (str): токен бота от BotFather
+            bot (telebot.TeleBot): объект телеграм бота
         """
         super().__init__()
         self.db = database
@@ -82,7 +86,7 @@ class PaymentManager(warer.WarerObject):
         Создает инвойс для подписки через метод sendInvoice или createInvoiceLink.
         
         Аргументы:
-            user_id (int): ID пользователя в вашей системе
+            user_id (int): ID пользователя телеграм
             plan (database.SubscriptionPlan): выбранный план подписки
             chat_id (int): опционально, ID чата для отправки инвойса
             
@@ -90,14 +94,13 @@ class PaymentManager(warer.WarerObject):
             dict: результат создания инвойса
         """
         try:
-            # Подготовка данных инвойса в соответствии с Bot API
+            # Подготовка данных инвойса
             title, description = self._get_plan_info(plan)
             
-            # Валюта ДОЛЖНА быть "XTR" для Telegram Stars
             currency = PaymentCurrency.STARS.value
             amount = int(self.SUBSCRIPTION_PRICES[plan])
             
-            # Цены должны быть переданы в формате Bot API
+            # Цены
             prices = [
                 telebot.types.LabeledPrice(
                     label=title,
@@ -105,7 +108,7 @@ class PaymentManager(warer.WarerObject):
                 )
             ]
             
-            # provider_token ДОЛЖЕН быть пустой строкой для цифровых товаров
+            # provider_token - пустая строка для цифровых товаров
             provider_token = ""
             
             # Создаем запись о инвойсе в БД
@@ -144,13 +147,6 @@ class PaymentManager(warer.WarerObject):
                     provider_token=provider_token,
                 )
 
-                if os.getenv("DEBUG") == "True":
-                    self._create_fake_pre_checkout_query(
-                        user_id=user_id,
-                        currency=currency,
-                        amount=amount,
-                        payload=payload,
-                    )
                 return {
                     "success": True,
                     "method": "sendInvoice",
@@ -182,13 +178,18 @@ class PaymentManager(warer.WarerObject):
             }
         
     def handle_pre_checkout_query(self, query: telebot.types.PreCheckoutQuery):
-        """Обработка pre-checkout запроса."""
+        """
+        Валидация данных pre-checkout запроса.
+        
+        Аргументы:
+            query (telebot.types.PreCheckoutQuery): объект pre-checkout запроса
+            
+        Возвращает:
+            dict: результат обработки данных платежа
+        """
         try:
-            print("In handle_pre_checkout_query")
-    
             # Проверяем возможность обработать заказ
             success = True
-            error_message = None
 
             payload_data = json.loads(query.invoice_payload)
             payment_id = payload_data.get("payment_id")
@@ -224,40 +225,45 @@ class PaymentManager(warer.WarerObject):
             # print(PaymentMethod(method))
             # print(PaymentStatus(status))
 
+            # Проверка корректности данных
             if any(checks):
                 success = False
-                error_message = "Некорректные данные платежа"
-            
+
             if success:
-                print("In success branch")
-                self.bot.answer_pre_checkout_query(
-                    query.id, 
-                    ok=True
-                )
+                return {
+                    "success": True,
+                    "method": "PreCheckoutQuery",
+                    "result": checks,
+                    "message": "Данные платежа успешно прошли валидацию"
+                }
             else:
-                self.bot.answer_pre_checkout_query(
-                    query.id, 
-                    ok=False,
-                    error_message=error_message or "Не удалось обработать заказ"
-                )
+                return {
+                    "success": False,
+                    "method": "PreCheckoutQuery",
+                    "result": checks,
+                    "message": "Данные платежа не прошли валидацию"
+                }
             
         except Exception as e:
-            self.bot.answer_pre_checkout_query(
-                query.id,
-                ok=False, 
-                error_message="Внутренняя ошибка сервера"
-            )
+            return {
+                "success": False,
+                "error": e,
+                "message": "Ошибка при валидации данных платежа"
+            }
 
     def handle_successful_payment(self, user_id: int, successful_payment: telebot.types.SuccessfulPayment) -> typing.Dict[str, typing.Any]:
         """
         Обрабатывает успешный платеж и активирует подписку.
         
         Аргументы:
-            user_id (int): ID пользователя
-            successful_payment (dict): данные из поля successful_payment апдейта[citation:1]
+            user_id (int): ID пользователя телеграм
+            successful_payment (telebot.types.SuccessfulPayment): данные из поля successful_payment
+
+        Возвращает:
+            dict: результат обработки успешного платежа
         """
         try:
-            # Извлекаем критически важные данные из платежа
+            # Извлекаем данные из платежа
             telegram_payment_charge_id = successful_payment.telegram_payment_charge_id
 
             invoice_payload = json.loads(successful_payment.invoice_payload)
@@ -277,6 +283,9 @@ class PaymentManager(warer.WarerObject):
             payment = self.db.fetch_one(query, params)
 
             plan = database.SubscriptionPlan(payment.get("data", {}).get("plan"))
+
+            if plan is None:
+                raise ValueError("Некорректный план подписки")
             
             # Активируем подписку пользователя
             result = self._activate_subscription(user_id, plan)
@@ -310,8 +319,18 @@ class PaymentManager(warer.WarerObject):
             user_id: int, 
             plan: database.SubscriptionPlan, 
         ) -> typing.Dict[str, typing.Any]:
-        """Активирует подписку пользователя после успешного платежа."""
+        """
+        Активирует подписку пользователя.
+        
+        Аргументы:
+            user_id (int): ID пользователя телеграм
+            plan (database.SubscriptionPlan): enum поле плана подписки
+
+        Возвращает:
+            dict: результат активации подписки
+        """
         try:
+            # Получаем последнию запись о платеже
             subscription_select_query = f"""
                 SELECT *
                 FROM {database.TableNames.SUBSCRIPTIONS.value}
@@ -326,7 +345,9 @@ class PaymentManager(warer.WarerObject):
             now_time = datetime.datetime.now()
             duration_days = self.SUBSCRIPTION_DURATIONS[plan]
 
+            # Проверяем если она существует и срок действия ещё не истёк
             if not (subscription is None or subscription.get("end_date") <= now_time):
+                # Обновляем срок действия
                 end_date = subscription.get("end_date") + datetime.timedelta(days=duration_days)
                 subscription_query, subscription_params = database.BaseQueries.update(
                     database.TableNames.SUBSCRIPTIONS,
@@ -339,6 +360,7 @@ class PaymentManager(warer.WarerObject):
                 )
                 subscription = self.db.fetch_one(subscription_query, subscription_params)
             else:
+                # Создаём новую запись
                 end_date = now_time + datetime.timedelta(days=duration_days)
                 subscriptions_insert_query, subscriptions_insert_params = database.BaseQueries.insert(
                     database.TableNames.SUBSCRIPTIONS,
@@ -374,8 +396,18 @@ class PaymentManager(warer.WarerObject):
             user_id: int, 
             item_id: int, 
         ) -> typing.Dict[str, typing.Any]:
-        """Активирует подписку пользователя после успешного платежа."""
+        """
+        Обновляет подписку пользователя после отмены платежа.
+        
+        Аргументы:
+            user_id (int): ID пользователя телеграм
+            item_id (int): ID подписки
+
+        Возвращает:
+            dict: результат обновления подписки
+        """
         try:
+            # Получаем подписку по item_id
             subscription_select_query, subscription_select_params = database.BaseQueries.select(
                 table_name=database.TableNames.SUBSCRIPTIONS,
                 conditions={"id": item_id}
@@ -387,10 +419,17 @@ class PaymentManager(warer.WarerObject):
                 raise ValueError("Объект деактивации отсутствует")
 
             now_time = datetime.datetime.now()
-            plan = subscription.get("data", {}).get("plan")
+            plan_value = subscription.get("plan_type")
+            plan = database.SubscriptionPlan(plan_value)
+            print(plan)
+            if plan is None:
+                raise ValueError("Поле plan отсутствует в data")
             duration_days = self.SUBSCRIPTION_DURATIONS[plan]
+            print(duration_days)
             end_date = subscription.get("end_date") - datetime.timedelta(days=duration_days)
+            print(end_date)
 
+            # Обновляем срок действия подписки
             subscription_query, subscription_params = database.BaseQueries.update(
                 database.TableNames.SUBSCRIPTIONS,
                 data={
@@ -414,12 +453,19 @@ class PaymentManager(warer.WarerObject):
             return {
                 "success": False, 
                 "error": str(e),
-                "message": "Ошибка активации подписки"
+                "message": "Ошибка деактивации подписки"
             }
 
     def process_refund(self, user_id: int, payment_charge_id: str) -> typing.Dict[str, typing.Any]:
         """
-        Обрабатывает возврат средств через метод refundStarPayment[citation:1].
+        Обрабатывает возврат средств
+        
+        Аргументы:
+            user_id (int): ID пользователя телеграм
+            payment_charge_id (str): ID подписки
+
+        Возвращает:
+            dict: результат обновления подписки
         """
         try:
             success = self.bot.refund_star_payment(user_id, payment_charge_id)
@@ -437,21 +483,12 @@ class PaymentManager(warer.WarerObject):
                     update_data,
                     {"user_id": user_id, "telegram_payment_charge_id": payment_charge_id}
                 )
-                self.db.execute(query, params)
+                payment = self.db.fetch_one(query, params)
                 
                 # Деактивируем подписку пользователя
-                user_update = {
-                    userinfo.UserFields.IS_PREMIUM: False,
-                    userinfo.UserFields.STATUS: "free",
-                    userinfo.UserFields.UPDATED_AT: datetime.datetime.now()
-                }
-                
-                query, params = database.BaseQueries.update(
-                    database.TableNames.USERS,
-                    user_update,
-                    {userinfo.UserFields.USER_ID: user_id}
-                )
-                self.db.execute(query, params)
+                deactivate_result = self._deactivate_subscription(user_id, payment.get("item_id"))
+
+                print(deactivate_result.get("message"))
             
             return {
                 "success": success,
@@ -459,20 +496,12 @@ class PaymentManager(warer.WarerObject):
             }
             
         except Exception as e:
+            print(e)
             return {
                 "success": False,
                 "error": str(e),
                 "message": "Ошибка обработки возврата"
             }
-
-    def _get_plan_description(self, plan: database.SubscriptionPlan) -> str:
-        """Возвращает описание плана подписки."""
-        descriptions = {
-            database.SubscriptionPlan.BASIC: "Базовый план: доступ к основным функциям создания коллажей",
-            database.SubscriptionPlan.PREMIUM: "Премиум план: расширенные возможности и приоритетная обработка", 
-            database.SubscriptionPlan.PRO: "PRO план: полный доступ ко всем функциям без ограничений"
-        }
-        return descriptions.get(plan, "Подписка на сервис коллажей")
     
     def _get_plan_info(self, plan: database.SubscriptionPlan) -> str:
         """Возвращает описание плана подписки."""
@@ -508,9 +537,6 @@ class PaymentManager(warer.WarerObject):
         return {
             "PaymentManager": self.__str__()
         }
-
-    # Методы check_subscription_status, get_user_payments и др. остаются без изменений
-    # из предыдущей реализации, так как они работают с вашей внутренней БД
 
 if __name__ == "__main__":
     dotenv.load_dotenv("dev.env")
