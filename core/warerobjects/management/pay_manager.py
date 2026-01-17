@@ -314,6 +314,20 @@ class PaymentManager(warer.WarerObject):
                 "message": "Ошибка обработки успешного платежа"
             }
 
+    def _get_last_subscription(self, user_id: int, plan_type: str):
+        subscription_select_query = f"""
+            SELECT *
+            FROM {database.TableNames.SUBSCRIPTIONS.value}
+            WHERE user_id = %s
+            AND plan_type = %s
+            ORDER BY end_date DESC
+            LIMIT 1;
+        """
+        subscription_select_params = [user_id, plan_type]
+
+        subscription = self.db.fetch_one(subscription_select_query, subscription_select_params)
+        return subscription
+
     def _activate_subscription(
             self, 
             user_id: int, 
@@ -331,17 +345,8 @@ class PaymentManager(warer.WarerObject):
         """
         try:
             # Получаем последнию запись о платеже
-            subscription_select_query = f"""
-                SELECT *
-                FROM {database.TableNames.SUBSCRIPTIONS.value}
-                WHERE user_id = %s
-                AND plan_type = %s
-                ORDER BY end_date DESC
-                LIMIT 1;
-            """
-            subscription_select_params = [user_id, plan.value]
+            subscription = self._get_last_subscription(user_id, plan.value)
 
-            subscription = self.db.fetch_one(subscription_select_query, subscription_select_params)
             now_time = datetime.datetime.now()
             duration_days = self.SUBSCRIPTION_DURATIONS[plan]
 
@@ -493,6 +498,51 @@ class PaymentManager(warer.WarerObject):
             return {
                 "success": success,
                 "message": "Возврат выполнен успешно" if success else "Ошибка возврата"
+            }
+            
+        except Exception as e:
+            print(e)
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "Ошибка обработки возврата"
+            }
+        
+    def check_subscription_info(self, user_id: int) -> typing.Dict[str, typing.Any]:
+        """
+        Обрабатывает возврат средств
+        
+        Аргументы:
+            user_id (int): ID пользователя телеграм
+            payment_charge_id (str): ID подписки
+
+        Возвращает:
+            dict: результат обновления подписки
+        """
+        try:
+            sorted_subscription_plans = database.SubscriptionConfig.get_sorted_by_level()
+
+            res_subscription = None
+
+            if sorted_subscription_plans:
+                for plan in sorted_subscription_plans[::-1]:
+                    # Получаем последнию запись о платеже
+                    subscription = self._get_last_subscription(user_id, plan.value)
+
+                    now_time = datetime.datetime.now()
+
+                    # Проверяем если она существует и срок действия ещё не истёк
+                    if not (subscription is None or subscription.get("end_date") <= now_time):
+                        res_subscription = subscription
+                        break
+                else:
+                    res_subscription = None
+            else:
+                res_subscription = None
+            
+            return {
+                "success": True,
+                "item": res_subscription,
             }
             
         except Exception as e:

@@ -29,6 +29,7 @@ import core.warerobjects.management.database as database
 import core.warerobjects.management.pay_manager as pay_manager
 import core.warerobjects.data.userinfo as userinfo
 import core.user as collage_user
+import core.dialog.texts as bot_texts
 
 # Настройка логирования
 logging.basicConfig(
@@ -127,6 +128,7 @@ class CollageBot:
         self.bot.callback_query_handler(func=lambda call: call.data.startswith('payment_'))(self._wrap_handler(self._handle_payment_callback))
         self.bot.callback_query_handler(func=lambda call: call.data == 'process_collage')(self._wrap_handler(self._process_collage))
         self.bot.callback_query_handler(func=lambda call: call.data == 'back_to_sizes')(self._wrap_handler(self._handle_back_to_sizes))
+        self.bot.callback_query_handler(func=lambda call: call.data == 'subscription_buy_offer')(self._wrap_handler(self._subscription_buy_offer))
         self.bot.callback_query_handler(func=lambda call: call.data == 'cancel_collage')(self._wrap_handler(self._cancel_command))
         
         # Обработчики платежей
@@ -140,28 +142,20 @@ class CollageBot:
         """Обработчик команды /start."""
         user = message.from_user
         
-        # Регистрация пользователя в базе данных
-        self._register_user(user)
-        
-        # Приветственное сообщение
-        welcome_text = (
-            f"👋 Привет, {user.first_name}!\n\n"
-            "Я бот для создания красивых коллажей из твоих фотографий.\n\n"
-            "📸 <b>Что я умею:</b>\n"
-            "• Создавать коллажи из нескольких фото\n"
-            "• Применять различные эффекты и рамки\n"
-            "• Настраивать размер и пропорции\n"
-            "• Работать с подписками\n\n"
-            "🚀 <b>Начни с команды /collage</b> чтобы создать свой первый коллаж!\n\n"
-            "❓ Помощь: /help\n"
-            "💎 Подписка: /subscription"
-        )
+        welcome_text = bot_texts.BotTexts.WELCOME.render(first_name=user.first_name)
         
         keyboard = [
-            [telebot.types.InlineKeyboardButton("🎨 Создать коллаж", callback_data="collage_start")],
-            [telebot.types.InlineKeyboardButton("💎 Моя подписка", callback_data="subscription_info"),
-             telebot.types.InlineKeyboardButton("📊 История платежей", callback_data="payment_history")],
-            [telebot.types.InlineKeyboardButton("❓ Помощь", callback_data="help")]
+            [
+                telebot.types.InlineKeyboardButton("🎨 Создать коллаж", callback_data="collage_start"),
+                telebot.types.InlineKeyboardButton("🎨 Загрузить изображения", callback_data="upload_start"),
+            ],
+            [
+                telebot.types.InlineKeyboardButton("💎 Моя подписка", callback_data="subscription_info"),
+                telebot.types.InlineKeyboardButton("📊 История платежей", callback_data="payment_history"),
+            ],
+            [
+                telebot.types.InlineKeyboardButton("❓ Помощь", callback_data="help"),
+            ],
         ]
         reply_markup = telebot.types.InlineKeyboardMarkup(keyboard)
         
@@ -176,26 +170,7 @@ class CollageBot:
     
     def _help_command(self, message: telebot.types.Message):
         """Обработчик команды /help."""
-        help_text = (
-            "📖 <b>Справка по командам:</b>\n\n"
-            "🎨 <b>/collage</b> - создать новый коллаж\n"
-            "• Загрузите несколько фотографий\n"
-            "• Выберите размер и эффекты\n"
-            "• Получите готовый коллаж!\n\n"
-            "💎 <b>/subscription</b> - управление подпиской\n"
-            "• Проверка статуса подписки\n"
-            "• Покупка/продление подписки\n"
-            "• Информация о тарифах\n\n"
-            "📊 <b>/history</b> - история платежей\n\n"
-            "❓ <b>/help</b> - эта справка\n\n"
-            "<b>Как создать коллаж:</b>\n"
-            "1. Отправьте команду /collage\n"
-            "2. Загрузите от 2 до 10 фотографий\n"
-            "3. Выберите размер коллажа\n"
-            "4. Выберите эффекты (опционально)\n"
-            "5. Получите готовый коллаж!\n\n"
-            "💡 <b>Совет:</b> Для лучшего качества используйте фотографии схожего размера."
-        )
+        help_text = bot_texts.BotTexts.HELP.render()
         
         self.bot.reply_to(message, help_text, parse_mode='HTML')
     
@@ -494,56 +469,63 @@ class CollageBot:
                 parse_mode='HTML'
             )
     
+    def _subscription_info(self, message: telebot.types.Message, subscription: dict):
+        """Обработчик команды /subscription."""
+        plan_name = subscription.get("plan_type")
+        # plan = database.SubscriptionPlan[plan_name]
+
+        # Показываем информацию о текущей подписке
+        days_remaining = (subscription.get("end_date") - datetime.datetime.now()).days
+        
+        subscription_text = bot_texts.BotTexts.SUBSCRIPTION_EXISTS_INFO.render(
+            plan_name=plan_name, 
+            days_remaining=days_remaining
+        )
+
+        keyboard = [
+            [telebot.types.InlineKeyboardButton("Купить / Продлить", callback_data="subscription_buy_offer")],
+            [telebot.types.InlineKeyboardButton("📊 История платежей", callback_data="payment_history")]
+        ]
+        reply_markup = telebot.types.InlineKeyboardMarkup(keyboard)
+        
+        self.bot.reply_to(
+            message, 
+            subscription_text, 
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
+    
+    def _subscription_buy_offer(self, message: telebot.types.Message):
+        """Обработчик команды /subscription."""
+        subscription_text = subscription_text = bot_texts.BotTexts.SUBSCRIPTION_BUY_INFO.render()
+            
+        keyboard = [
+            [telebot.types.InlineKeyboardButton("Basic - 100 ⭐", callback_data="payment_basic")],
+            [telebot.types.InlineKeyboardButton("Premium - 300 ⭐", callback_data="payment_premium")],
+            [telebot.types.InlineKeyboardButton("Pro - 500 ⭐", callback_data="payment_pro")],
+            [telebot.types.InlineKeyboardButton("📊 История платежей", callback_data="payment_history")]
+        ]
+        reply_markup = telebot.types.InlineKeyboardMarkup(keyboard)
+        
+        self.bot.reply_to(
+            message,
+            text=subscription_text,
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
+
     def _subscription_command(self, message: telebot.types.Message):
         """Обработчик команды /subscription."""
         user = message.from_user
         
-        subscription_status = True
-        # subscription_status = self.payment_manager.check_subscription_status(user.id)
-        
-        if False and subscription_status.get('has_subscription', False) and subscription_status.get('is_active', False):
-            # Показываем информацию о текущей подписке
-            days_remaining = subscription_status.get('days_remaining', 0)
-            plan_name = subscription_status.get('plan', '').capitalize()
-            
-            subscription_text = (
-                f"💎 <b>Ваша подписка: {plan_name}</b>\n\n"
-                f"✅ Статус: <b>Активна</b>\n"
-                f"📅 Осталось дней: <b>{days_remaining}</b>\n"
-                f"🎨 Доступно коллажей: <b>Безлимит</b>\n\n"
-                f"Спасибо за использование премиум-функций! 🚀"
-            )
-            self.bot.reply_to(message, subscription_text, parse_mode='HTML')
+        subscription = None
+        subscription_info = self.payment_manager.check_subscription_status(user.id)
+
+        if subscription_info.get("success") and subscription_info.get("item"):
+            subscription = subscription_info.get("item")
+            self._subscription_info(message, subscription)
         else:
-            # Предлагаем купить подписку
-            subscription_text = (
-                "💎 <b>Премиум подписка</b>\n\n"
-                "🔓 <b>Откройте все возможности:</b>\n"
-                "• 🎨 Безлимитное создание коллажей\n"
-                "• ⚡ Приоритетная обработка\n"
-                "• 🖼️ Эксклюзивные эффекты и рамки\n"
-                "• 📈 Улучшенное качество\n\n"
-                "💳 <b>Тарифы:</b>\n"
-                "• Basic - 100 звезд/месяц\n"
-                "• Premium - 300 звезд/месяц  \n"
-                "• Pro - 500 звезд/месяц\n\n"
-                "Выберите тариф для покупки:"
-            )
-            
-            keyboard = [
-                [telebot.types.InlineKeyboardButton("Basic - 100 ⭐", callback_data="payment_basic")],
-                [telebot.types.InlineKeyboardButton("Premium - 300 ⭐", callback_data="payment_premium")],
-                [telebot.types.InlineKeyboardButton("Pro - 500 ⭐", callback_data="payment_pro")],
-                [telebot.types.InlineKeyboardButton("📊 История платежей", callback_data="payment_history")]
-            ]
-            reply_markup = telebot.types.InlineKeyboardMarkup(keyboard)
-            
-            self.bot.reply_to(
-                message,
-                text=subscription_text,
-                reply_markup=reply_markup,
-                parse_mode='HTML'
-            )
+            self._subscription_buy_offer(message)
     
     def _handle_payment_callback(self, call: telebot.types.CallbackQuery):
         """Обработка callback'ов от кнопок платежей."""
@@ -697,13 +679,7 @@ class CollageBot:
             "wide": size_policy.SizePolicy.Size.WIDE
         }
         return size_policy.SizePolicy(size_mapping.get(size_type, size_policy.SizePolicy.Size.SQUARE))
-    
-    def _register_user(self, user):
-        """Регистрация пользователя в базе данных."""
-        # Здесь должна быть реализация регистрации пользователя
-        # Используйте BaseQueries для вставки в таблицу users
-        pass
-    
+     
     def _get_free_collages_remaining(self, user_id: int) -> int:
         """Получение количества оставшихся бесплатных коллажей."""
         # Реализация проверки лимитов

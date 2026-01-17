@@ -96,6 +96,50 @@ class SubscriptionPlan(enum.Enum):
 
     def __str__(self):
         return self.value
+    
+class SubscriptionConfig(abc.ABC):
+    """Конфигурация таблиц с информацией о первичных ключах"""
+    
+    SUBSCRIPTION_INFO = {
+        SubscriptionPlan.BASIC: (0,),
+        SubscriptionPlan.PREMIUM: (1,),
+        SubscriptionPlan.PRO: (2,),
+    }
+
+    @classmethod
+    def get_level(cls, plan: SubscriptionPlan):
+        """
+        Получение первичного ключа таблицы.
+
+        Аргументы:
+            table_name (TableNames): имя таблицы
+
+        Возвращает:
+            str: если первичный ключ простой
+            tuple: если первичный ключ составной
+        """
+        return cls.SUBSCRIPTION_INFO.get(plan, (0,))[0]
+    
+    @classmethod
+    def get_sorted_by_level(cls) -> list[SubscriptionPlan]:
+        """
+        Получение первичного ключа таблицы.
+
+        Аргументы:
+            table_name (TableNames): имя таблицы
+
+        Возвращает:
+            str: если первичный ключ простой
+            tuple: если первичный ключ составной
+        """
+        items = cls.SUBSCRIPTION_INFO.items()
+        items.sort(key=lambda x: cls.get_level(x[0]))
+
+        result = []
+        for item in items:
+            result.append(item[0])
+
+        return result
 
 class TableConfig(abc.ABC):
     """Конфигурация таблиц с информацией о первичных ключах"""
